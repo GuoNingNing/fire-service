@@ -3,9 +3,8 @@ package org.fire.service.restful.route
 import akka.actor.ActorSystem
 import org.fire.service.core.BaseRoute
 import org.fire.service.core.ResultJsonSupport._
-import spray.http.{MediaTypes, StatusCodes}
+import spray.http.{MediaTypes, MultipartFormData, StatusCodes}
 import spray.routing.Route
-import akka.event.slf4j.Slf4jLogger
 
 
 /**
@@ -29,6 +28,16 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
             ctx.complete(StatusCodes.OK, success(s"you post $body"))
           }
         }
+      } ~ (post & path("upload")) {
+      //文件上传示例 curl -F f1=@userinfo.txt http://localhost:9200/hello/upload
+
+      entity(as[MultipartFormData]) { formData =>
+        respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+          val part = formData.fields.head
+          logger.info(s"upload file ${part.name.getOrElse("none")}")
+          ctx.complete(StatusCodes.OK, success("you upload file info %s ", new String(part.entity.data.toByteArray)))
+        }
       }
+    }
   }
 }

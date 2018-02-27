@@ -24,6 +24,8 @@ class RestfullApi(system: ActorSystem, config: Config) extends SimpleRoutingApp 
 
     buildRoute().foreach(r => {
       logger.info(s"registered route  $r")
+
+
       indexRoute = indexRoute.~(r.route())
     })
     indexRoute
