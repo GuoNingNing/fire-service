@@ -49,7 +49,7 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
         * 您也可以非常方便地提供自己的媒体类型和/或文件扩展名。请参阅“ 自定义媒体类型” https://github.com/spray/spray/wiki/Custom-Media-Types。
         */
 
-      getFromFile("userinfo.html")
+      getFromFile("userinfo.txt")
     }
   }
 }
