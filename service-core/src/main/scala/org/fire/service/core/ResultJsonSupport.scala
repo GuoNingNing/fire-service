@@ -17,6 +17,9 @@ import scala.language.reflectiveCalls
   */
 case class ResultMsg(code: Int, msg: String, data: Any = null)
 
+
+case class User(name: String, age: Int)
+
 object ResultJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
 
   implicit object AnyJsonFormat extends JsonFormat[Any] {
@@ -81,6 +84,8 @@ object ResultJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   def listFromJson(json: String): Seq[Any] = json.toJson.convertTo[Seq[Any]]
 
   implicit def resultFormats: RootJsonFormat[ResultMsg] = jsonFormat3(ResultMsg)
+
+  implicit def userFormats: RootJsonFormat[User] = jsonFormat2(User)
 
   def success(data: Any) = ResultMsg(0, "success", data)
 

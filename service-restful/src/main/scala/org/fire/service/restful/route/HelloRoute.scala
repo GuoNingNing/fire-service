@@ -1,7 +1,7 @@
 package org.fire.service.restful.route
 
 import akka.actor.ActorSystem
-import org.fire.service.core.BaseRoute
+import org.fire.service.core.{BaseRoute, User}
 import org.fire.service.core.ResultJsonSupport._
 import spray.http.{MediaTypes, MultipartFormData, StatusCodes}
 import spray.routing.Route
@@ -50,6 +50,15 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
         */
 
       getFromFile("userinfo.html")
+    } ~ (post & path("user")) {
+
+      entity(as[User]) { user =>
+        respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+          logger.info(s"post user $user")
+          ctx.complete(StatusCodes.OK, success(s"post user $user"))
+        }
+      }
     }
   }
 }
+
