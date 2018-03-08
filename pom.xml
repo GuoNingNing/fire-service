@@ -23,6 +23,7 @@
         <scala.binary.version>2.11</scala.binary.version>
 
         <log4j.version>1.7.25</log4j.version>
+        <logback.version>1.2.3</logback.version>
         <json4s.version>3.2.10</json4s.version>
         <spray.version>1.3.3</spray.version>
         <akka.version>2.3.9</akka.version>
@@ -66,23 +67,30 @@
                 <scope>test</scope>
             </dependency>
 
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-logging</groupId>
-                <artifactId>commons-logging</artifactId>
-                <version>1.2</version>
-            </dependency>
-            <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-core</artifactId>
-                <version>1.2.3</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <dependencies>
+
+
+        <!-- 日志相关Jar -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+        </dependency>
+
+    </dependencies>
 
 
     <build>

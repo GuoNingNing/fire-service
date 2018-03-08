@@ -22,7 +22,7 @@
     <logger name="com.avaje.ebeaninternal.server.lib.BackgroundThread" level="OFF" />
 
     <root level="INFO">
-        <!--<appender-ref ref="stdout"/>-->
+        <appender-ref ref="stdout"/>
         <appender-ref ref="R"/>
     </root>
 </configuration>
