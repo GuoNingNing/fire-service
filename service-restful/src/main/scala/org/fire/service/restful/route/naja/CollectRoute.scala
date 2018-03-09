@@ -1,5 +1,6 @@
 package org.fire.service.restful.route.naja
 
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 import akka.actor.ActorSystem
@@ -7,8 +8,10 @@ import org.fire.service.core.BaseRoute
 import org.fire.service.core.ResultJsonSupport._
 import spray.http.{MediaTypes, StatusCodes}
 import spray.routing.Route
+import akka.pattern.ask
 
 import scala.collection.JavaConversions._
+import scala.concurrent.Await
 
 
 /**
@@ -19,8 +22,14 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   val configPrefix = "route.naja.collect"
   val fileBasePath = config.getString(s"$configPrefix.file.base.path")
   val hostInfo : ConcurrentHashMap[String,Host] = new ConcurrentHashMap[String,Host]()
+  val collectDB = system.actorSelection("/user/collect-fire-service")
 
   import DataFormat._
+  import spray.json._
+
+  override protected def preStart(): Unit = {
+
+  }
 
   override protected def routes() : Route = {
     sourceGet()
@@ -59,8 +68,18 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   private def testPostEntity(): Route ={
     (post & path("post")) {
       entity(as[Echo]) {echo =>
+        collectDB ! TestRow(echo.time,echo.info)
         respondWithMediaType(MediaTypes.`application/json`){ctx =>
           ctx.complete(StatusCodes.OK,success(echo.info))
+        }
+      }
+    } ~ (get & path("post")) {
+      parameters('info,'time.as[Int]).as(Echo) {echo =>
+        val resFuture = collectDB ? TestRead(None)
+        val res = Await.result(resFuture,timeout.duration).asInstanceOf[List[TestRow]]
+        val resString = res.toJson.compactPrint
+        respondWithMediaType(MediaTypes.`application/json`){ctx =>
+          ctx.complete(StatusCodes.OK,success(resString))
         }
       }
     }
@@ -97,16 +116,34 @@ object NajaTest {
 
   def main(args: Array[String]): Unit = {
     val echoList = Array(Echo("echo1",2220302),Echo("ohce2",2938210))
-    val json = Color("abc",echoList.toList).toJson
+    val json = Echos("abc",echoList.toList).toJson
     val jsonStr=json.prettyPrint
     println(jsonStr)
-    val color = jsonStr.parseJson.convertTo[Color]
+    val color = jsonStr.parseJson.convertTo[Echos]
     println(color)
 
-    val hostStr=
-      """
-        |{"disk":[{"used":200000,"read":12.2,"fsType":"ext3","total":2000000,"percent":2.200000047683716,"mount":"/","write":14.2,"device":"/dev/vda1"}],"role":[{"name":"t1","status":2,"info":""},{"name":"t2","status":3,"info":""}],"hostName":"nn","net":[{"name":"eth0","ip":"192.168.1.1","link":20,"totalLink":30},{"name":"lo","ip":"127.0.0.1","link":0,"totalLink":30}],"mem":{"used":2000,"cached":0,"shared":0,"buffer":0,"total":20000,"free":20000},"cpu":{"idle":93.30000305175781,"user":2.4000000953674316,"sys":3.9000000953674316},"hostId":"uid-00","proc":{"total":20},"user":"cloud"}
-      """.stripMargin
+    val hostID = UUID.randomUUID().toString
+    val ips = Array(IpRow(hostID,"en0","127.0.0.1",1234567890112L))
+    val timestamp = System.currentTimeMillis()
+    val memoryRow = MemoryRow(hostID,0L,0L,0L,0L,0L,0L,timestamp)
+    val cpuRow = CpuRow(hostID,0.0,0.0,0.0,timestamp)
+    val netIoRowList = Array(NetIoRow(hostID,"en0",0.0,0.0,0L,0L,timestamp))
+    val diskRowList = Array(DiskRow(hostID,"/","/dev/disk0","ext4",0L,0L,0.0,0.0,timestamp))
+    val processInfo = ProcessInfo(0)
+    val roleRowList = Array(RoleRow(hostID,"flume",None,timestamp))
+    val hostStruct = Host(hostID,
+      "hostname",
+      "user",
+      ips.toList,
+      memoryRow,
+      cpuRow,
+      netIoRowList.toList,
+      diskRowList.toList,
+      processInfo,
+      roleRowList.toList)
+
+    val hostStr = hostStruct.toJson.compactPrint
+    println(s"\n$hostStr\n")
     val host = hostStr.parseJson.convertTo[Host]
     println(host.hostId)
 
