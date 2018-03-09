@@ -33,7 +33,7 @@ trait BaseRoute extends HttpService {
 
 
   @throws(classOf[Exception])
-  private def preStart(): Unit = ()
+  protected def preStart(): Unit = ()
 
   /**
     * 异常处理
