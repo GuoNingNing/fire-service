@@ -1,7 +1,7 @@
 package org.fire.service.restful.route
 
 import akka.actor.ActorSystem
-import org.fire.service.core.BaseRoute
+import org.fire.service.core.{BaseRoute, User}
 import org.fire.service.core.ResultJsonSupport._
 import spray.http.{MediaTypes, MultipartFormData, StatusCodes}
 import spray.routing.Route
@@ -49,7 +49,16 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
         * 您也可以非常方便地提供自己的媒体类型和/或文件扩展名。请参阅“ 自定义媒体类型” https://github.com/spray/spray/wiki/Custom-Media-Types。
         */
 
-      getFromFile("userinfo.txt")
+      getFromFile("userinfo.html")
+    } ~ (post & path("user")) {
+
+      entity(as[User]) { user =>
+        respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+          logger.info(s"post user $user")
+          ctx.complete(StatusCodes.OK, success(s"post user $user"))
+        }
+      }
     }
   }
 }
+

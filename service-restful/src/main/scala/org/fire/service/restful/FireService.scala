@@ -1,11 +1,14 @@
 package org.fire.service.restful
 
-import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
+
+import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 import org.fire.service.restful.route.naja.{CollectCacheActor, CollectDBActor, JedisConnect}
 import org.slf4j.LoggerFactory
+import org.fire.service.core.Supervisor
 
 import scala.slick.driver.MySQLDriver.simple._
+
 
 /**
   * Created by guoning on 2018/1/25.
@@ -26,6 +29,9 @@ object FireService {
 
     system.actorOf(Props(new CollectDBActor(db,config)),"collect-db-fire-service")
     system.actorOf(Props(new CollectCacheActor(jedisConnect,config)),"collect-cache-fire-service")
+
+    logger.info("FireService starting ...")
+    val supervisor = system.actorOf(Props[Supervisor], name = "Supervisor")
 
     new RestfullApi(system, config).start()
 
