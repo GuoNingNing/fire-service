@@ -20,12 +20,11 @@ class CollectCacheActor(val jedisConnect: JedisConnect,
   private val nameListKey = "hostNameList"
 
   override def receive: Receive = {
-    case hostRow: HostRow =>
-      JedisConnect.redisSafe {jedis =>
-        jedis.set(hostRow.id,hostRow.toJson.compactPrint)
-        jedis.sadd(hostListKey,hostRow.id)
-        jedis.sadd(nameListKey,hostRow.hostName)
-      }(jedisConnect.connect())
+    case host: Host => JedisConnect.redisSafe { jedis =>
+      jedis.set(host.hostId,host.toJson.compactPrint)
+      jedis.sadd(hostListKey,host.hostId)
+      jedis.sadd(nameListKey,host.hostName)
+    }(jedisConnect.connect())
 
     case HostRead(hostRow) =>
       sender ! JedisConnect.redisSafe {jedis =>

@@ -25,7 +25,7 @@ class CollectDBActor(val db: Database,
   override def receive: Receive = {
     case TestRow(id,str) => db.withSession {
       implicit session =>
-        test += (id,str)
+        test.insertOrUpdate((id,str))
     }
     case TestRead(tr) => db.withSession {
       implicit session =>
@@ -38,7 +38,7 @@ class CollectDBActor(val db: Database,
 
     case HostRow(id,hostName,timestamp) => db.withSession {
       implicit session =>
-        hosts += (id,hostName,timestamp)
+        hosts.insertOrUpdate((id,hostName,timestamp))
     }
     case HostRead(hostRow) => db.withSession {
       implicit session =>
@@ -51,7 +51,7 @@ class CollectDBActor(val db: Database,
 
     case PasswordRow(id,user,pass,pkey,timestamp) => db.withSession {
       implicit session =>
-        password += (id,user,pass,pkey,timestamp)
+        password.insertOrUpdate((id,user,pass,pkey,timestamp))
     }
     case PasswordRead(p) => db.withSession {
       implicit session =>
@@ -64,7 +64,7 @@ class CollectDBActor(val db: Database,
 
     case IpRow(id,name,ip,timestamp) => db.withSession {
       implicit session =>
-        ips += (id,name,ip,timestamp)
+        ips.insertOrUpdate((id,name,ip,timestamp))
     }
     case IpRead(ipRow) => db.withSession {
       implicit session =>
@@ -78,7 +78,7 @@ class CollectDBActor(val db: Database,
 
     case RoleRow(id,role,table,timestamp) => db.withSession {
       implicit session =>
-        roles += (id,role,table,timestamp)
+        roles.insertOrUpdate((id,role,table,timestamp))
     }
     case RoleRead(roleRow) => db.withSession {
       implicit session =>

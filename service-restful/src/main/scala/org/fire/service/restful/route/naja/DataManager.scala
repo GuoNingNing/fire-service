@@ -5,6 +5,7 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import akka.actor.{ActorSelection, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
+import org.fire.service.restful.FireService
 
 import scala.concurrent.Await
 import scala.reflect.ClassTag
@@ -14,40 +15,66 @@ import scala.collection.mutable.{ListBuffer, Map => IMap}
 /**
   * Created by cloud on 18/3/9.
   */
-object TempDM {
+object DataManager {
 
   implicit val timeout = Timeout(20,TimeUnit.SECONDS)
 
   val hostIdMap = new ConcurrentHashMap[String,Host]()
   val hostNameMap = new ConcurrentHashMap[String,Host]()
+  val cacheActorName = FireService.cacheActorName
+  val dbActorName = FireService.dbActorName
 
-  def hostStruct(actorSystem: ActorSystem): List[ConcurrentHashMap[String,Host]] = {
-    val collectDB = actorSystem.actorSelection("/user/collect-db-fire-service")
-    val hostsFuture = collectDB ? HostRead(None)
-    val hosts = Await.result(hostsFuture,timeout.duration).asInstanceOf[List[HostRow]]
-    val roles = getRole(collectDB,None)
-    val ips = getIp(collectDB,None)
-    val disks = getDisk(collectDB,None)
-    val nets = getNet(collectDB,None)
-    val cpus = getCpu(collectDB,None)
-    val memorys = getMem(collectDB,None)
-    hosts.foreach {
-      h =>
-        val hm = h.id -> Host(
-          h.id,
-          h.hostName,
-          "",
-          ips(h.id),
-          memorys(h.id),
-          cpus(h.id),
-          nets(h.id),
-          disks(h.id),
-          ProcessInfo(0),
-          roles(h.id))
-        hostIdMap += hm
-        hostNameMap += hm
+  def parseLoadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow]): List[Host] = {
+    val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")
+    val redisFuture = collectCache ? HostRead(hostRow)
+    val res = Await.result(redisFuture, timeout.duration).asInstanceOf[Seq[String]]
+    res.map { hostStr =>
+      import DataFormat._
+      import spray.json._
+      hostStr.parseJson.convertTo[Host]
+    }.toList
+  }
+
+  def updateCache(actorSystem: ActorSystem, hostMap: Map[String,Host]): Unit = {
+    val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")
+
+    hostMap.foreach { case (id,host) =>
+      collectCache ! host
     }
-    Array(hostIdMap,hostNameMap).toList
+  }
+
+  def writeCache(actorSystem: ActorSystem,host: Host): Unit = {
+    val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")
+    collectCache ! Host
+  }
+  def writeHosts(actorSystem: ActorSystem, hostList: List[Host]): Unit = {
+    val collectDB = actorSystem.actorSelection(s"/user/$dbActorName")
+    hostList.foreach {h =>
+      collectDB ! HostRow(h.hostId,h.hostName,h.cpu.timestamp)
+      collectDB ! h.mem
+      collectDB ! h.cpu
+      h.ip.foreach(i => collectDB ! i)
+      h.role.foreach(r => collectDB ! r)
+      h.disk.foreach(d => collectDB ! d)
+      h.net.foreach(n => collectDB ! n)
+    }
+  }
+
+
+  def loadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow] = None): Map[String,Host] = {
+    val collectDB = actorSystem.actorSelection(s"/user/$dbActorName")
+    val hostsFuture = collectDB ? HostRead(hostRow)
+    val hosts = Await.result(hostsFuture,timeout.duration).asInstanceOf[List[HostRow]]
+    val roles = getRole(collectDB,hostRow)
+    val ips = getIp(collectDB,hostRow)
+    val disks = getDisk(collectDB,hostRow)
+    val nets = getNet(collectDB,hostRow)
+    val cpus = getCpu(collectDB,hostRow)
+    val memorys = getMem(collectDB,hostRow)
+    hosts.map {
+      case HostRow(id,name,_) =>
+        id -> Host(id, name, "", ips(id), memorys(id), cpus(id), nets(id), disks(id), ProcessInfo(0), roles(id))
+    }.toMap
   }
 
   def getNameRow[T <: RowRead,R <: Row,K : ClassTag](collectDB: ActorSelection, rowRead: T)

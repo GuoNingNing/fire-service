@@ -23,6 +23,9 @@ object DataFormat extends DefaultJsonProtocol with SprayJsonSupport{
 }
 
 
+case object InitLoadHosts
+case object InitWriteHosts
+
 trait Row extends Serializable{
   val id: String
   val timestamp: Long
