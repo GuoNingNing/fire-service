@@ -5,7 +5,6 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import akka.actor.{ActorSelection, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
-import org.fire.service.restful.FireService
 
 import scala.concurrent.Await
 import scala.reflect.ClassTag
@@ -21,8 +20,8 @@ object DataManager {
 
   val hostIdMap = new ConcurrentHashMap[String,Host]()
   val hostNameMap = new ConcurrentHashMap[String,Host]()
-  val cacheActorName = FireService.cacheActorName
-  val dbActorName = FireService.dbActorName
+  val cacheActorName = CollectRouteConstantConfig.CACHE_ACTOR_NAME
+  val dbActorName = CollectRouteConstantConfig.DB_ACTOR_NAME
 
   def parseLoadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow]): List[Host] = {
     val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")

@@ -6,10 +6,10 @@ import java.util.concurrent.ConcurrentHashMap
 import akka.actor.ActorSystem
 import org.fire.service.core.BaseRoute
 import org.fire.service.core.ResultJsonSupport._
+import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
 import spray.http.{MediaTypes, StatusCodes}
 import spray.routing.Route
 import akka.pattern.ask
-import org.fire.service.restful.FireService
 
 import scala.collection.JavaConversions._
 import scala.concurrent.Await
@@ -21,17 +21,22 @@ import scala.concurrent.duration._
   */
 class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   override val pathPrefix: String = "naja"
-  val configPrefix = "route.naja.collect"
-  val fileBasePath = config.getString(s"$configPrefix.file.base.path")
+  val fileBasePath = config.getString(FILE_SER_PATH,FILE_SER_PATH_DEF)
   val hostInfo : ConcurrentHashMap[String,Host] = new ConcurrentHashMap[String,Host]()
-  val collectDB = system.actorSelection(s"/user/${FireService.dbActorName}")
-  val collectCache = system.actorSelection(s"/user/${FireService.cacheActorName}")
+  val collectDB = system.actorSelection(s"/user/$DB_ACTOR_NAME")
+  val collectCache = system.actorSelection(s"/user/$CACHE_ACTOR_NAME")
+  val collectLoad = system.actorSelection(s"/user/$LOAD_ACTOR_NAME")
 
   import DataFormat._
   import spray.json._
 
   override protected def preStart(): Unit = {
-    //system.scheduler.schedule(0 seconds,5 seconds,collectCache,"")
+    val collectLoadRef = Await.result(collectLoad.resolveOne,timeout.duration)
+    val dataManagerMode = config.getString(DATA_MANAGER_MODE,DATA_MANAGER_MODE_DEF)
+    dataManagerMode match {
+      case "restful" => system.scheduler.schedule (0 seconds, 5 seconds, collectLoadRef, InitWriteHosts)
+      case "mysql" => system.scheduler.schedule(0 seconds, 5 seconds, collectLoadRef, InitLoadHosts)
+    }
   }
 
   override protected def routes() : Route = {
@@ -126,7 +131,7 @@ object NajaTest {
     val color = jsonStr.parseJson.convertTo[Echos]
     println(color)
 
-    /*val hostID = UUID.randomUUID().toString
+    val hostID = UUID.randomUUID().toString
     val ips = Array(IpRow(hostID,"en0","127.0.0.1",1234567890112L))
     val timestamp = System.currentTimeMillis()
     val memoryRow = MemoryRow(hostID,0L,0L,0L,0L,0L,0L,timestamp)
@@ -147,7 +152,7 @@ object NajaTest {
       roleRowList.toList)
 
     val hostStr = hostStruct.toJson.compactPrint
-    println(s"\n$hostStr\n")*/
+    println(s"\n$hostStr\n")
     val hStr =
       """
         |{"hostId": "6260bcd1-1b94-11e8-b9b1-9801a79f540b",

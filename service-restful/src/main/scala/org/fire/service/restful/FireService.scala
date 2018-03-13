@@ -3,7 +3,7 @@ package org.fire.service.restful
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
-import org.fire.service.restful.route.naja.{CollectCacheActor, CollectDBActor, JedisConnect, LoadActor}
+import org.fire.service.restful.route.naja._
 import org.slf4j.LoggerFactory
 import org.fire.service.core.Supervisor
 
@@ -18,9 +18,9 @@ import scala.slick.driver.MySQLDriver.simple._
 object FireService {
 
   private val logger = LoggerFactory.getLogger(getClass)
-  val dbActorName = "db-file-service"
-  val cacheActorName = "cache-fire-service"
-  val loadActorName = "load-fire-service"
+  val dbActorName = CollectRouteConstantConfig.DB_ACTOR_NAME
+  val cacheActorName = CollectRouteConstantConfig.CACHE_ACTOR_NAME
+  val loadActorName = CollectRouteConstantConfig.LOAD_ACTOR_NAME
 
   def main(args: Array[String]): Unit = {
 
