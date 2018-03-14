@@ -26,16 +26,18 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   val collectDB = system.actorSelection(s"/user/$DB_ACTOR_NAME")
   val collectCache = system.actorSelection(s"/user/$CACHE_ACTOR_NAME")
   val collectLoad = system.actorSelection(s"/user/$LOAD_ACTOR_NAME")
+  val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
 
   import DataFormat._
   import spray.json._
 
   override protected def preStart(): Unit = {
+    import system.dispatcher
     val collectLoadRef = Await.result(collectLoad.resolveOne,timeout.duration)
-    val dataManagerMode = config.getString(DATA_MANAGER_MODE,DATA_MANAGER_MODE_DEF)
-    dataManagerMode match {
-      case "restful" => system.scheduler.schedule (0 seconds, 5 seconds, collectLoadRef, InitWriteHosts)
-      case "mysql" => system.scheduler.schedule(0 seconds, 5 seconds, collectLoadRef, InitLoadHosts)
+    val restMode = config.getBoolean(DATA_MANAGER_REST,DATA_MANAGER_REST_DEF)
+    restMode match {
+      case true => system.scheduler.schedule (0 seconds, 5 seconds, collectLoadRef, InitWriteHosts)
+      case false => system.scheduler.schedule (0 seconds, 5 seconds, collectLoadRef, InitLoadHosts)
     }
   }
 
@@ -43,7 +45,8 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     sourceGet()
       .~(testRest())
       .~(testEchoEntity())
-      .~(pushHostInfo())
+      .~(hostManager())
+      .~(monitor())
   }
 
   private def sourceGet(): Route = {
@@ -82,12 +85,13 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     }
   }
 
-  private def pushHostInfo(): Route = {
+  private def hostManager(): Route = {
     path("host"){
       post {
         entity(as[Host]) { body =>
           val host = body
-          hostInfo += host.hostId -> host
+          DataManager.hostIdMap += host.hostId -> host
+          DataManager.hostNameMap += host.hostName -> host
           collectCache ! host
           respondWithMediaType(MediaTypes.`application/json`) { ctx =>
             ctx.complete(StatusCodes.OK, success(host.hostId))
@@ -95,16 +99,53 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
         }
       } ~ get{
         parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hostRow =>
-          val host = if(hostInfo.containsKey(hostRow.id)) Some(hostInfo(hostRow.id)) else None
+          val host = getHost(hostRow)
           respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-            val (status,resMsg) = host match {
-              case Some(h) => (StatusCodes.OK,success(h.toJson.compactPrint))
-              case None => (StatusCodes.NoContent,failure(s"can't host ${hostRow.id}"))
-            }
-            ctx.complete(status,resMsg)
+            ctx.complete(StatusCodes.OK,success(host.toJson.compactPrint))
           }
         }
       }
+    } ~ path("hosts"){
+      get {
+        respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+          ctx.complete(StatusCodes.OK,DataManager.hostIdMap.map(_._2).toList.toJson.compactPrint)
+        }
+      }
+    }
+  }
+
+  private def monitor(): Route = {
+    path("monitor"){
+      path("host"){
+        get {
+          parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
+            val hostMonitor = DataManager.loadHistory(system,Some(hr))
+            respondWithMediaType(MediaTypes.`application/json`){ ctx =>
+              ctx.complete(StatusCodes.OK,success(hostMonitor.toJson.compactPrint))
+            }
+          }
+        }
+      } ~ path("memory"){
+        get {
+          parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
+            val memoryMonitor = DataManager.getMem(collectDB,Some(hr))
+            respondWithMediaType(MediaTypes.`application/json`){ ctx =>
+              ctx.complete(StatusCodes.OK,success(memoryMonitor.toJson.compactPrint))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private def getHost(hostRow: HostRow): List[Host] = {
+
+    if (DataManager.hostIdMap.containsKey(hostRow.id)) {
+      List(DataManager.hostIdMap(hostRow.id))
+    } else if (DataManager.hostNameMap.containsKey(hostRow.hostName)) {
+      List(DataManager.hostNameMap(hostRow.hostName))
+    } else {
+      DataManager.loadHosts(system,Some(hostRow)).values.toList
     }
   }
 

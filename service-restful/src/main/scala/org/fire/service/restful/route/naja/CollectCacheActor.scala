@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config
 import org.slf4j.LoggerFactory
 import redis.clients.jedis.{Jedis, JedisPool, JedisPoolConfig}
+import CollectRouteConstantConfig._
 
 import scala.collection.JavaConversions._
 
@@ -13,27 +14,28 @@ import scala.collection.JavaConversions._
 class CollectCacheActor(val jedisConnect: JedisConnect,
                         val config: Config) extends Actor with ActorLogging {
 
-  import DataFormat._
-  import spray.json._
 
   private val hostListKey = "hostIdList"
   private val nameListKey = "hostNameList"
+  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  private def nowTime = System.currentTimeMillis() - hostTimeout
 
   override def receive: Receive = {
     case host: Host => JedisConnect.redisSafe { jedis =>
-      jedis.set(host.hostId,host.toJson.compactPrint)
+      jedis.set(host.hostId,DataManager.generateJson(host))
       jedis.sadd(hostListKey,host.hostId)
       jedis.sadd(nameListKey,host.hostName)
     }(jedisConnect.connect())
 
     case HostRead(hostRow) =>
       sender ! JedisConnect.redisSafe {jedis =>
-        hostRow match {
+        val hostSeq = hostRow match {
           case Some(h) => Seq(jedis.get(h.id))
           case None =>
             val hostList = jedis.smembers(hostListKey)
             hostList.toList.map(jedis.get)
         }
+        hostSeq.map(DataManager.parseHost).filter(_.mem.timestamp > nowTime)
       }(jedisConnect.connect())
 
   }

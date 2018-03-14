@@ -19,6 +19,7 @@ object DataFormat extends DefaultJsonProtocol with SprayJsonSupport{
   implicit val roleFormat = jsonFormat4(RoleRow)
   implicit val diskFormat = jsonFormat9(DiskRow)
   implicit val hostFormat = jsonFormat10(Host)
+  implicit val hostMonitorFormat = jsonFormat7(HostMonitor)
   implicit val colorFormat = jsonFormat2(Echos.apply)
 }
 
@@ -44,6 +45,13 @@ case class Host(hostId : String,
                 disk : List[DiskRow],
                 proc : ProcessInfo,
                 role : List[RoleRow])
+case class HostMonitor(hostId: String,
+                       hostName: String,
+                       role: List[RoleRow],
+                       cpu: List[CpuRow],
+                       mem: List[MemoryRow],
+                       disk: List[DiskRow],
+                       net: List[NetIoRow])
 
 case class Echos(a : String,b : List[Echo])
 
@@ -171,4 +179,5 @@ class NetIo(tag: Tag) extends Table[(String,String,Double,Double,Long,Long,Long)
 
   def * = (id,ifName,send,receive,link,totalLink,timestamp)
 }
+
 

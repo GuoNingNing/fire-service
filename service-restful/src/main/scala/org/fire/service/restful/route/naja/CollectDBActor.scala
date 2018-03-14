@@ -3,6 +3,7 @@ package org.fire.service.restful.route.naja
 import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config
 import scala.slick.driver.MySQLDriver.simple._
+import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
 
 /**
   * Created by cloud on 18/3/9.
@@ -20,7 +21,7 @@ class CollectDBActor(val db: Database,
   private val disk = TableQuery[Disk]
   private val netIo = TableQuery[NetIo]
 
-  private val hostTimeout = config.getLong("db.host.collect.timeout")
+  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
 
   override def receive: Receive = {
     case TestRow(id,str) => db.withSession {
@@ -44,7 +45,7 @@ class CollectDBActor(val db: Database,
       implicit session =>
         val hostList = hostRow match {
           case Some(x) => hosts.filter(_.id === x.id).list
-          case None => hosts.list
+          case None => hosts.filter(_.timestamp > nowTime).list
         }
         sender ! hostList.map { case (id,name,tt) => HostRow(id,name,tt)}
     }
@@ -84,7 +85,7 @@ class CollectDBActor(val db: Database,
       implicit session =>
         val roleList = roleRow match {
           case Some(r) => roles.filter(_.id === r.id).list
-          case None => roles.list
+          case None => roles.filter(_.timestamp > nowTime).list
         }
 
         sender ! roleList.map { case (i,n,t,tt) => RoleRow(i,n,t,tt)}
@@ -96,7 +97,6 @@ class CollectDBActor(val db: Database,
     }
     case MemoryRead(memoryRow) => db.withSession {
       implicit session =>
-        val nowTime = System.currentTimeMillis() - hostTimeout
         val memoryRowList = memoryRow match {
           case Some(m) => memory.filter(m2 => m2.id === m.id && m2.timestamp > m.timestamp-hostTimeout).list
           case None => memory.filter(_.timestamp > nowTime).list
@@ -110,7 +110,6 @@ class CollectDBActor(val db: Database,
     }
     case CpuRead(cpuRow) => db.withSession {
       implicit session =>
-        val nowTime = System.currentTimeMillis() - hostTimeout
         val cpuRowList = cpuRow match {
           case Some(c) => cpu.filter(c2 => c2.id === c.id && c2.timestamp > c.timestamp-hostTimeout).list
           case None => cpu.filter(_.timestamp > nowTime).list
@@ -124,7 +123,6 @@ class CollectDBActor(val db: Database,
     }
     case DiskRead(diskRow) => db.withSession {
       implicit session =>
-        val nowTime = System.currentTimeMillis() - hostTimeout
         val diskRowList = diskRow match {
           case Some(d) => disk.filter(d2 => d2.id === d.id && d2.timestamp > d.timestamp-hostTimeout).list
           case None => disk.filter(_.timestamp > nowTime).list
@@ -138,7 +136,6 @@ class CollectDBActor(val db: Database,
     }
     case NetIoRead(netIoRow) => db.withSession {
       implicit session =>
-        val nowTime = System.currentTimeMillis() - hostTimeout
         val netIoRowList = netIoRow match {
           case Some(n) => netIo.filter(n2 => n2.id === n.id && n2.timestamp > n.timestamp-hostTimeout).list
           case None => netIo.filter(_.timestamp > nowTime).list
@@ -147,4 +144,6 @@ class CollectDBActor(val db: Database,
     }
 
   }
+
+  private def nowTime = System.currentTimeMillis() - hostTimeout
 }

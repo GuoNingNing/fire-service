@@ -5,11 +5,14 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import akka.actor.{ActorSelection, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
+import DataFormat._
+import spray.json._
 
 import scala.concurrent.Await
 import scala.reflect.ClassTag
 import scala.collection.JavaConversions._
 import scala.collection.mutable.{ListBuffer, Map => IMap}
+
 
 /**
   * Created by cloud on 18/3/9.
@@ -26,13 +29,12 @@ object DataManager {
   def parseLoadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow]): List[Host] = {
     val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")
     val redisFuture = collectCache ? HostRead(hostRow)
-    val res = Await.result(redisFuture, timeout.duration).asInstanceOf[Seq[String]]
-    res.map { hostStr =>
-      import DataFormat._
-      import spray.json._
-      hostStr.parseJson.convertTo[Host]
-    }.toList
+    val res = Await.result(redisFuture, timeout.duration).asInstanceOf[Seq[Host]]
+    res.toList
   }
+
+  def parseHost(hostStr: String): Host = hostStr.parseJson.convertTo[Host]
+  def generateJson(host: Host): String = host.toJson.compactPrint
 
   def updateCache(actorSystem: ActorSystem, hostMap: Map[String,Host]): Unit = {
     val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")
@@ -59,6 +61,20 @@ object DataManager {
     }
   }
 
+  def loadHistory(actorSystem: ActorSystem, hostRow: Option[HostRow] = None): Map[String,HostMonitor] = {
+    val collectDB = actorSystem.actorSelection(s"/user/$dbActorName")
+    val future = collectDB ? HostRead(hostRow)
+    val hosts = Await.result(future,timeout.duration).asInstanceOf[List[HostRow]]
+    val roles = getRole(collectDB,hostRow)
+    val disks = getDisk(collectDB,hostRow,history = true)
+    val nets = getNet(collectDB,hostRow,history = true)
+    val cpus = getCpu(collectDB,hostRow)
+    val mems = getMem(collectDB,hostRow)
+    hosts.map {
+      case HostRow(id,name,_) =>
+        id -> HostMonitor(id,name, roles(id),cpus(id),mems(id),disks(id),nets(id))
+    }.toMap
+  }
 
   def loadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow] = None): Map[String,Host] = {
     val collectDB = actorSystem.actorSelection(s"/user/$dbActorName")
@@ -72,7 +88,9 @@ object DataManager {
     val memorys = getMem(collectDB,hostRow)
     hosts.map {
       case HostRow(id,name,_) =>
-        id -> Host(id, name, "", ips(id), memorys(id), cpus(id), nets(id), disks(id), ProcessInfo(0), roles(id))
+        id -> Host(id, name, "",
+          ips(id), memorys(id).last, cpus(id).last,
+          nets(id), disks(id), ProcessInfo(0), roles(id))
     }.toMap
   }
 
@@ -90,6 +108,12 @@ object DataManager {
         diskRowMap += id -> diskRowList.toList
     }
     diskRowMap.toMap
+  }
+
+  def getHistoryRow[T <: RowRead,R <: Row](collectDB: ActorSelection, rowRead: T): Map[String,List[R]] = {
+    val future = collectDB ? rowRead
+    val res = Await.result(future,timeout.duration).asInstanceOf[List[R]]
+    res.groupBy(_.id).map { case (id,lr) => id -> lr}
   }
 
   def getPassword(collectDB: ActorSelection,hostRow: Option[HostRow]) = {
@@ -113,27 +137,33 @@ object DataManager {
     }
     getNameRow[RoleRead,RoleRow,String](collectDB,roleRead) {r => r.role}
   }
-  def getDisk(collectDB: ActorSelection,hostRow: Option[HostRow]) = {
+  def getDisk(collectDB: ActorSelection,hostRow: Option[HostRow],history: Boolean = false) = {
     val diskRead = hostRow match {
       case Some(hr) => DiskRead(Some(DiskRow(hr.id,"","","",0L,0L,0,0,hr.timestamp)))
       case None => DiskRead(None)
     }
 
-    getNameRow[DiskRead,DiskRow,String](collectDB,diskRead) {d => d.mount}
+    if(history)
+      getNameRow[DiskRead,DiskRow,String](collectDB,diskRead) {d => d.mount}
+    else
+      getHistoryRow[DiskRead,DiskRow](collectDB,diskRead)
   }
-  def getNet(collectDB: ActorSelection,hostRow: Option[HostRow]) = {
+  def getNet(collectDB: ActorSelection,hostRow: Option[HostRow],history: Boolean = false) = {
     val netIoRead = hostRow match {
       case Some(hr) => NetIoRead(Some(NetIoRow(hr.id,"",0,0,0L,0L,hr.timestamp)))
       case None => NetIoRead(None)
     }
-    getNameRow[NetIoRead,NetIoRow,String](collectDB,netIoRead) {n => n.ifName}
+    if(history)
+      getNameRow[NetIoRead,NetIoRow,String](collectDB,netIoRead) {n => n.ifName}
+    else
+      getHistoryRow[NetIoRead,NetIoRow](collectDB,netIoRead)
   }
 
 
-  def getRow[T <: RowRead,R <: Row](ref: ActorSelection,rowRead: T): Map[String,R] = {
+  def getRow[T <: RowRead,R <: Row](ref: ActorSelection,rowRead: T): Map[String,List[R]] = {
     val future = ref ? rowRead
     val res = Await.result(future,timeout.duration).asInstanceOf[List[R]]
-    res.groupBy(_.id).map { case (id,lc) => id -> lc.sortBy(_.timestamp).last }
+    res.groupBy(_.id).map { case (id,lc) => id -> lc.sortBy(_.timestamp) }
   }
 
   def getCpu(collectDB: ActorSelection,hostRow: Option[HostRow]) = {
@@ -150,6 +180,5 @@ object DataManager {
     }
     getRow[MemoryRead, MemoryRow](collectDB, memoryRead)
   }
-
 
 }
