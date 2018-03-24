@@ -79,6 +79,10 @@ object Mail {
             msg: String): Mail =
     apply(from,password,from -> from.substring(0,from.indexOf("@")),to.split(",").toSeq,subject,msg)
 }
+object WeChat {
+  def apply(url: String, contacts: String, msg: String): WeChat =
+    new WeChat(url, contacts.split(","), msg)
+}
 
 /*
 * redis 数据结构

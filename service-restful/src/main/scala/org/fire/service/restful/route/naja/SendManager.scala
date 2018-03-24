@@ -60,11 +60,11 @@ object SendManager {
   def sendEmail(mail: Mail): String = {
     val email = new HtmlEmail().setMsg(mail.msg)
 
-    email.setHostName("")
-    email.setSmtpPort(465)
+    email.setHostName(mail.server)
+    email.setSmtpPort(mail.port)
     email.setStartTLSEnabled(true)
     email.setSSLOnConnect(true)
-    email.setAuthentication("","")
+    email.setAuthentication(mail.user,mail.password)
 
     mail.to.foreach(email.addTo)
     mail.cc.foreach(email.addCc)
