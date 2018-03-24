@@ -17,7 +17,7 @@ class CollectCacheActor(val jedisConnect: JedisConnect,
 
   private val hostListKey = "hostIdList"
   private val nameListKey = "hostNameList"
-  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  private val hostTimeout = config.getLong(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
   private def nowTime = System.currentTimeMillis() - hostTimeout
 
   override def receive: Receive = {
@@ -38,7 +38,22 @@ class CollectCacheActor(val jedisConnect: JedisConnect,
         hostSeq.map(DataManager.parseHost).filter(_.mem.timestamp > nowTime)
       }(jedisConnect.connect())
 
+    case RSet(k,v) => JedisConnect.redisSafe {
+      jedis => jedis.set(k,v)
+    }(jedisConnect.connect())
+
+    case RGet(k) =>
+      sender ! JedisConnect.redisSafe {
+        jedis => jedis.get(k)
+      }(jedisConnect.connect())
   }
+}
+
+object CollectCacheActor {
+  val NAME = "cache-fire-service"
+
+  def apply(jedisConnect: JedisConnect, config: Config): CollectCacheActor =
+    new CollectCacheActor(jedisConnect, config)
 }
 
 

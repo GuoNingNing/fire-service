@@ -18,9 +18,6 @@ import scala.slick.driver.MySQLDriver.simple._
 object FireService {
 
   private val logger = LoggerFactory.getLogger(getClass)
-  val dbActorName = CollectRouteConstantConfig.DB_ACTOR_NAME
-  val cacheActorName = CollectRouteConstantConfig.CACHE_ACTOR_NAME
-  val loadActorName = CollectRouteConstantConfig.LOAD_ACTOR_NAME
 
   def main(args: Array[String]): Unit = {
 
@@ -30,9 +27,9 @@ object FireService {
     val db = Database.forConfig("mysql",config.getConfig("db"))
     val jedisConnect = JedisConnect(config.getConfig("redis.connect"))
 
-    system.actorOf(Props(new CollectDBActor(db,config)),dbActorName)
-    system.actorOf(Props(new CollectCacheActor(jedisConnect,config)),cacheActorName)
-    system.actorOf(Props(new LoadActor(config)),loadActorName)
+    system.actorOf(Props(CollectDBActor(db,config)),CollectDBActor.NAME)
+    system.actorOf(Props(CollectCacheActor(jedisConnect,config)),CollectCacheActor.NAME)
+    system.actorOf(Props(LoadActor(config)),LoadActor.NAME)
 
     logger.info("FireService starting ...")
     val supervisor = system.actorOf(Props[Supervisor], name = "Supervisor")

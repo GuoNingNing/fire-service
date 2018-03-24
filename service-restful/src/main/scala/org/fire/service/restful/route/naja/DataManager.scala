@@ -23,8 +23,8 @@ object DataManager {
 
   val hostIdMap = new ConcurrentHashMap[String,Host]()
   val hostNameMap = new ConcurrentHashMap[String,Host]()
-  val cacheActorName = CollectRouteConstantConfig.CACHE_ACTOR_NAME
-  val dbActorName = CollectRouteConstantConfig.DB_ACTOR_NAME
+  val cacheActorName = CollectCacheActor.NAME
+  val dbActorName = CollectDBActor.NAME
 
   def parseLoadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow]): List[Host] = {
     val collectCache = actorSystem.actorSelection(s"/user/$cacheActorName")

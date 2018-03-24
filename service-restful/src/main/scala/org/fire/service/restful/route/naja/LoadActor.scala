@@ -31,3 +31,9 @@ class LoadActor(config: Config) extends Actor with ActorLogging{
 
   }
 }
+
+object LoadActor {
+  val NAME = "load-fire-service"
+
+  def apply(config: Config): LoadActor = new LoadActor(config)
+}

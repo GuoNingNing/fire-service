@@ -23,10 +23,10 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   override val pathPrefix: String = "naja"
   val fileBasePath = config.getString(FILE_SER_PATH,FILE_SER_PATH_DEF)
   val hostInfo : ConcurrentHashMap[String,Host] = new ConcurrentHashMap[String,Host]()
-  val collectDB = system.actorSelection(s"/user/$DB_ACTOR_NAME")
-  val collectCache = system.actorSelection(s"/user/$CACHE_ACTOR_NAME")
-  val collectLoad = system.actorSelection(s"/user/$LOAD_ACTOR_NAME")
-  val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  val collectDB = system.actorSelection(s"/user/${CollectDBActor.NAME}")
+  val collectCache = system.actorSelection(s"/user/${CollectCacheActor.NAME}")
+  val collectLoad = system.actorSelection(s"/user/${LoadActor.NAME}")
+  val hostTimeout = config.getLong(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
 
   import DataFormat._
   import spray.json._
