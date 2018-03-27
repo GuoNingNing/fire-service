@@ -32,7 +32,7 @@ object FireService {
     system.actorOf(Props(LoadActor(config)),LoadActor.NAME)
 
     logger.info("FireService starting ...")
-    val supervisor = system.actorOf(Props[Supervisor], name = "Supervisor")
+    val supervisor = system.actorOf(Props[Supervisor], Supervisor.NAME)
 
     new RestfullApi(system, config).start()
 

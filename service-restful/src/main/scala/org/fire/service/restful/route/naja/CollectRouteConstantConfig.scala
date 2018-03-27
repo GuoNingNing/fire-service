@@ -13,7 +13,7 @@ object CollectRouteConstantConfig extends BaseConfig {
   val FILE_SER_PATH_DEF = "/Users/cloud/myfile/file"
 
   val HOST_TIMEOUT = s"$CONFIG_PREFIX.host.timeout"
-  val HOST_TIMEOUT_DEF = 15000L
+  val HOST_TIMEOUT_DEF = 15000
 
   val DATA_MANAGER_REST = s"$CONFIG_PREFIX.data.manager.rest"
   val DATA_MANAGER_REST_DEF = true

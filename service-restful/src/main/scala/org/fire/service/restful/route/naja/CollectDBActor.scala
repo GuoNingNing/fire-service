@@ -21,7 +21,7 @@ class CollectDBActor(val db: Database,
   private val disk = TableQuery[Disk]
   private val netIo = TableQuery[NetIo]
 
-  private val hostTimeout = config.getLong(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
 
   override def receive: Receive = {
     case TestRow(id,str) => db.withSession {

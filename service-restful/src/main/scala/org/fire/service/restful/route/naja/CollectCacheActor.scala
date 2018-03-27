@@ -17,7 +17,7 @@ class CollectCacheActor(val jedisConnect: JedisConnect,
 
   private val hostListKey = "hostIdList"
   private val nameListKey = "hostNameList"
-  private val hostTimeout = config.getLong(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
   private def nowTime = System.currentTimeMillis() - hostTimeout
 
   override def receive: Receive = {

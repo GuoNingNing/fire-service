@@ -52,6 +52,9 @@ object SendManager {
          |}
         """.stripMargin
 
+    if(ding.url == "")
+      return 0
+
     val req = Http(ding.url).postData(dingMsg).header("content-type","application/json")
     val res = req.asString
     res.code

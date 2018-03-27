@@ -26,7 +26,7 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   val collectDB = system.actorSelection(s"/user/${CollectDBActor.NAME}")
   val collectCache = system.actorSelection(s"/user/${CollectCacheActor.NAME}")
   val collectLoad = system.actorSelection(s"/user/${LoadActor.NAME}")
-  val hostTimeout = config.getLong(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
 
   import DataFormat._
   import spray.json._
