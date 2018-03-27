@@ -1,8 +1,5 @@
 package org.fire.service.core
 
-import java.util.{List => JList}
-import java.lang.{Boolean => JBoolean, Long => JLong, Double => JDouble}
-
 import com.typesafe.config.Config
 
 import scala.reflect.ClassTag

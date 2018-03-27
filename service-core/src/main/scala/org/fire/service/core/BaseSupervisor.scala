@@ -57,3 +57,7 @@ class Supervisor extends BaseSupervisor {
   }
 
 }
+
+object Supervisor {
+  val NAME = "Supervisor"
+}
