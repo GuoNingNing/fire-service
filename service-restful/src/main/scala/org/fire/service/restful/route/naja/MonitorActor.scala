@@ -71,7 +71,7 @@ object MonitorManager {
       case "ding" => getDingMsg(config,msg)
       case "mail" => getMailMsg(config,msg)
       case "weChat" => getWeChatMsg(config,msg)
-      case _ => Some(WeChat("","",msg))
+      case _ => Some(WeChat("",Seq.empty[String],msg))
     }
   }
 
@@ -96,7 +96,7 @@ object MonitorManager {
       val from = config.getStringList(s"$mailPrefix.from")
       val to = config.getStringList(s"$mailPrefix.to")
       val subject = config.getString(s"$mailPrefix.subject")
-      Mail(server, port, user, password, from(0) -> from(1), to, subject, msg)
+      Mail(server, port, user, password, from(0) -> from(1), to, Seq.empty[String],Seq.empty[String],subject, msg)
     }match {
       case Success(m) => Some(m)
       case Failure(e) => None

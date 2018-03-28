@@ -3,10 +3,10 @@ package org.fire.service.restful.route.naja
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
-import org.fire.service.core.BaseRoute
+import org.fire.service.core.{BaseRoute, ResultMsg}
 import org.fire.service.core.ResultJsonSupport._
 import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
-import spray.http.{MediaTypes, StatusCodes}
+import spray.http.{MediaTypes, StatusCode, StatusCodes}
 import spray.routing.Route
 
 import scala.slick.driver.MySQLDriver.simple._
@@ -60,7 +60,9 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     sourceGet()
       .~(hostManager())
       .~(monitor())
+      .~(sendMessage())
       .~(test())
+      .~(t1())
   }
 
   private def sourceGet(): Route = {
@@ -69,19 +71,18 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     }
   }
 
+  private def t1(): Route = pathPrefix("t1"){
+    test()
+  }
   private def test(): Route = {
     path("test"){
       post {
-        entity(as[TestRow]) { body =>
-          respondWithMediaType(MediaTypes.`application/json`){
-            ctx => ctx.complete(StatusCodes.OK,success(body.toJson.compactPrint))
-          }
+        entity(as[TestRow]) {
+          body => successJson(body.toJson.compactPrint)
         }
       } ~ get {
-        parameters('id.as[Int],'str).as(TestRow) {tr =>
-          respondWithMediaType(MediaTypes.`application/json`){
-            ctx => ctx.complete(StatusCodes.OK,success(tr.str))
-          }
+        parameters('id.as[Int],'str).as(TestRow) {
+          tr => successJson(tr.str)
         }
       }
     }
@@ -94,23 +95,18 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
           val host = body
           DataManager.hostIdMap += host.hostId -> host
           DataManager.hostNameMap += host.hostName -> host
-          respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-            ctx.complete(StatusCodes.OK, success(host.hostId))
-          }
+          collectCacheRef ! host
+          successJson(host.hostId)
         }
       } ~ get{
         parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hostRow =>
           val host = getHost(hostRow)
-          respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-            ctx.complete(StatusCodes.OK,success(host.toJson.compactPrint))
-          }
+          successJson(host.toJson.compactPrint)
         }
       }
     } ~ path("hosts"){
       get {
-        respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-          ctx.complete(StatusCodes.OK,DataManager.hostIdMap.map(_._2).toList.toJson.compactPrint)
-        }
+        successJson(DataManager.hostIdMap.map(_._2).toList.toJson.compactPrint)
       }
     }
   }
@@ -121,23 +117,52 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
         get {
           parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
             val hostMonitor = DataManager.loadHistory(system,Some(hr))
-            respondWithMediaType(MediaTypes.`application/json`){ ctx =>
-              ctx.complete(StatusCodes.OK,success(hostMonitor.toJson.compactPrint))
-            }
+            successJson(hostMonitor.toJson.compactPrint)
           }
         }
       } ~ path("memory"){
         get {
           parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
             val memoryMonitor = DataManager.getMem(collectDBSelect,Some(hr))
-            respondWithMediaType(MediaTypes.`application/json`){ ctx =>
-              ctx.complete(StatusCodes.OK,success(memoryMonitor.toJson.compactPrint))
-            }
+            successJson(memoryMonitor.toJson.compactPrint)
           }
         }
       }
     }
   }
+
+  private def sendMessage(): Route = {
+    pathPrefix("send") {
+      (post & path("ding")){
+        entity(as[Ding]) { ding =>
+          SendManager.sendDing(ding)
+          successJson("send ding successful")
+        }
+      }~(post & path("mail")){
+        entity(as[Mail]) { mail =>
+          SendManager.sendEmail(mail)
+          successJson("send email successful")
+        }
+      }~(post & path("wechat")){
+        entity(as[WeChat]){ weChat =>
+          SendManager.sendWeChat(weChat)
+          successJson("send weChat successful")
+        }
+      }~(get & path("wechat")){
+        val weChat = WeChat("",Seq.empty[String],"")
+        successJson(weChat.toJson.compactPrint)
+      }
+    }
+  }
+
+  private def successJson(data: Any): Route = jsonResponse(StatusCodes.OK,success(data))
+  private def failureJson(data: String): Route = jsonResponse(StatusCodes.OK,failure(data))
+  private def errorJson(statusCode: StatusCode,data: String): Route = jsonResponse(statusCode,failure(data))
+
+  private def jsonResponse(statusCode: StatusCode,data: ResultMsg): Route =
+    respondWithMediaType(MediaTypes.`application/json`) {
+      ctx => ctx.complete(statusCode,data)
+    }
 
   private def getHost(hostRow: HostRow): List[Host] = {
 

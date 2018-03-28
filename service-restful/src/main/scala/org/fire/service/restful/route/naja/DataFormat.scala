@@ -21,6 +21,9 @@ object DataFormat extends DefaultJsonProtocol with SprayJsonSupport{
   implicit val hostFormat = jsonFormat10(Host)
   implicit val hostMonitorFormat = jsonFormat7(HostMonitor)
   implicit val colorFormat = jsonFormat2(Echos.apply)
+  implicit val dingFormat = jsonFormat3(Ding)
+  implicit val mailFormat = jsonFormat10(Mail)
+  implicit val weChatFormat = jsonFormat3(WeChat)
 }
 
 
@@ -56,6 +59,7 @@ case class Mail(server: String,
 case class WeChat(url: String,
                   contacts: Seq[String],
                   msg: String) extends SendMsg
+/*
 object Ding {
   def apply(url: String, contacts: String, msg: String): Ding =
     new Ding(url, contacts.split(",").toSeq, msg)
@@ -85,6 +89,7 @@ object WeChat {
   def apply(url: String, contacts: String, msg: String): WeChat =
     new WeChat(url, contacts.split(","), msg)
 }
+*/
 
 /*
 * redis 数据结构
