@@ -3,11 +3,9 @@ package org.fire.service.restful
 
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
-import org.fire.service.restful.route.naja._
 import org.slf4j.LoggerFactory
 import org.fire.service.core.Supervisor
 
-import scala.slick.driver.MySQLDriver.simple._
 
 
 /**
@@ -21,15 +19,13 @@ object FireService {
 
   def main(args: Array[String]): Unit = {
 
-    //默认只会加载src/main/resource/application.conf文件
+    /*
+    * 默认只会加载src/main/resource/application.conf文件
+    * 需要指定配置文件路径则如下
+    * val config = ConfigFactory.parseFile(new File("/xxx/xxx.conf"))
+    * */
     val config = ConfigFactory.load()
     val system = ActorSystem("FireService", config)
-    val db = Database.forConfig("mysql",config.getConfig("db"))
-    val jedisConnect = JedisConnect(config.getConfig("redis.connect"))
-
-    system.actorOf(Props(CollectDBActor(db,config)),CollectDBActor.NAME)
-    system.actorOf(Props(CollectCacheActor(jedisConnect,config)),CollectCacheActor.NAME)
-    system.actorOf(Props(LoadActor(config)),LoadActor.NAME)
 
     logger.info("FireService starting ...")
     val supervisor = system.actorOf(Props[Supervisor], Supervisor.NAME)

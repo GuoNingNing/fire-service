@@ -1,18 +1,16 @@
 package org.fire.service.restful.route.naja
 
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
 import org.fire.service.core.BaseRoute
 import org.fire.service.core.ResultJsonSupport._
 import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
 import spray.http.{MediaTypes, StatusCodes}
 import spray.routing.Route
-import akka.pattern.ask
 
+import scala.slick.driver.MySQLDriver.simple._
 import scala.collection.JavaConversions._
-import scala.concurrent.Await
 import scala.concurrent.duration._
 
 
@@ -21,32 +19,48 @@ import scala.concurrent.duration._
   */
 class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   override val pathPrefix: String = "naja"
-  val fileBasePath = config.getString(FILE_SER_PATH,FILE_SER_PATH_DEF)
-  val hostInfo : ConcurrentHashMap[String,Host] = new ConcurrentHashMap[String,Host]()
-  val collectDB = system.actorSelection(s"/user/${CollectDBActor.NAME}")
-  val collectCache = system.actorSelection(s"/user/${CollectCacheActor.NAME}")
-  val collectLoad = system.actorSelection(s"/user/${LoadActor.NAME}")
-  val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+
+  private val fileBasePath = config.getString(FILE_SER_PATH,FILE_SER_PATH_DEF)
+  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  private val mysqlConfig = config.getConfig("db")
+  private val redisConfig = config.getConfig("redis")
+  private var collectDBRef: ActorRef = _
+  private var collectCacheRef: ActorRef = _
+  private var collectLoadRef: ActorRef = _
+  private var monitorRef: ActorRef = _
+  private var collectDBSelect: ActorSelection = _
+  private var collectCacheSelect: ActorSelection = _
 
   import DataFormat._
   import spray.json._
 
   override protected def preStart(): Unit = {
     import system.dispatcher
-    val collectLoadRef = Await.result(collectLoad.resolveOne,timeout.duration)
+
+    val mysqlConnect = Database.forConfig("mysql",mysqlConfig)
+    val jedisConnect = JedisConnect(redisConfig.getConfig("connect"))
+
+    collectDBRef = system.actorOf(Props(CollectDBActor(mysqlConnect,config)),CollectDBActor.NAME)
+    collectCacheRef = system.actorOf(Props(CollectCacheActor(jedisConnect,config)),CollectCacheActor.NAME)
+    collectLoadRef = system.actorOf(Props(LoadActor(config)),LoadActor.NAME)
+    monitorRef = system.actorOf(Props(MonitorActor(config)),MonitorActor.NAME)
+    collectDBSelect = system.actorSelection(s"/user/${CollectDBActor.NAME}")
+    collectCacheSelect = system.actorSelection(s"/user/${CollectCacheActor.NAME}")
+
     val restMode = config.getBoolean(DATA_MANAGER_REST,DATA_MANAGER_REST_DEF)
     restMode match {
       case true => system.scheduler.schedule (0 seconds, 5 seconds, collectLoadRef, InitWriteHosts)
       case false => system.scheduler.schedule (0 seconds, 5 seconds, collectLoadRef, InitLoadHosts)
     }
+
+    system.scheduler.schedule(5 seconds,5 seconds,monitorRef,InitMonitor)
   }
 
   override protected def routes() : Route = {
     sourceGet()
-      .~(testRest())
-      .~(testEchoEntity())
       .~(hostManager())
       .~(monitor())
+      .~(test())
   }
 
   private def sourceGet(): Route = {
@@ -55,31 +69,19 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     }
   }
 
-  private def testRest(): Route ={
-    (post & path("rest")) {
-      entity(as[String]){body =>
-        respondWithMediaType(MediaTypes.`application/json`){ctx =>
-          ctx.complete(StatusCodes.OK,success(s"your post body : $body"))
+  private def test(): Route = {
+    path("test"){
+      post {
+        entity(as[TestRow]) { body =>
+          respondWithMediaType(MediaTypes.`application/json`){
+            ctx => ctx.complete(StatusCodes.OK,success(body.toJson.compactPrint))
+          }
         }
-      }
-    }
-  }
-
-  private def testEchoEntity(): Route ={
-    (post & path("echo")) {
-      entity(as[Echo]) {echo =>
-        collectDB ! TestRow(echo.time,echo.info)
-        respondWithMediaType(MediaTypes.`application/json`){ctx =>
-          ctx.complete(StatusCodes.OK,success(echo.info))
-        }
-      }
-    } ~ (get & path("echo")) {
-      parameters('info,'time.as[Int]).as(Echo) {echo =>
-        val resFuture = collectDB ? TestRead(None)
-        val res = Await.result(resFuture,timeout.duration).asInstanceOf[List[TestRow]]
-        val resString = res.toJson.compactPrint
-        respondWithMediaType(MediaTypes.`application/json`){ctx =>
-          ctx.complete(StatusCodes.OK,success(resString))
+      } ~ get {
+        parameters('id.as[Int],'str).as(TestRow) {tr =>
+          respondWithMediaType(MediaTypes.`application/json`){
+            ctx => ctx.complete(StatusCodes.OK,success(tr.str))
+          }
         }
       }
     }
@@ -92,7 +94,6 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
           val host = body
           DataManager.hostIdMap += host.hostId -> host
           DataManager.hostNameMap += host.hostName -> host
-          collectCache ! host
           respondWithMediaType(MediaTypes.`application/json`) { ctx =>
             ctx.complete(StatusCodes.OK, success(host.hostId))
           }
@@ -128,7 +129,7 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
       } ~ path("memory"){
         get {
           parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
-            val memoryMonitor = DataManager.getMem(collectDB,Some(hr))
+            val memoryMonitor = DataManager.getMem(collectDBSelect,Some(hr))
             respondWithMediaType(MediaTypes.`application/json`){ ctx =>
               ctx.complete(StatusCodes.OK,success(memoryMonitor.toJson.compactPrint))
             }
@@ -145,7 +146,7 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     } else if (DataManager.hostNameMap.containsKey(hostRow.hostName)) {
       List(DataManager.hostNameMap(hostRow.hostName))
     } else {
-      DataManager.loadHosts(system,Some(hostRow)).values.toList
+      List.empty[Host]
     }
   }
 

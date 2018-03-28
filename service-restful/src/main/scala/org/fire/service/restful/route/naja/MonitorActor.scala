@@ -2,7 +2,7 @@ package org.fire.service.restful.route.naja
 
 import java.text.SimpleDateFormat
 
-import akka.actor.{Actor, ActorLogging, ActorSystem}
+import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config
 import CollectRouteConstantConfig._
 
@@ -33,15 +33,17 @@ class MonitorActor(val config: Config) extends Actor with ActorLogging{
     case InitMonitor =>
       val hostList = MonitorManager.checkHost(hostTimeout)
       val roleList = MonitorManager.checkRole(hostTimeout)
-      val hostMsg = MonitorManager.hostAlertMsg(hostList,hostHistory)
-      val roleMsg = MonitorManager.roleAlertMsg(roleList,roleHistory)
-      val sendMsg = MonitorManager.getSendMsg(config,hostMsg+"\n"+roleMsg)
-      sendMsg match {
-        case Some(sm) => self ! sm
-        case None => log.warning(s"create SendMsg failed. WarningMessage:\n$hostMsg\n$roleMsg")
+      if(hostList.nonEmpty || roleList.nonEmpty) {
+        val hostMsg = MonitorManager.hostAlertMsg(hostList, hostHistory)
+        val roleMsg = MonitorManager.roleAlertMsg(roleList, roleHistory)
+        val sendMsg = MonitorManager.getSendMsg(config, hostMsg + "\n" + roleMsg)
+        sendMsg match {
+          case Some(sm) => self ! sm
+          case None => log.warning(s"create SendMsg failed. WarningMessage:\n$hostMsg\n$roleMsg")
+        }
+        hostHistory = hostList
+        roleHistory = roleList
       }
-      hostHistory = hostList
-      roleHistory = roleList
   }
 
 }
