@@ -148,9 +148,6 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
           SendManager.sendWeChat(weChat)
           successJson("send weChat successful")
         }
-      }~(get & path("wechat")){
-        val weChat = WeChat("",Seq.empty[String],"")
-        successJson(weChat.toJson.compactPrint)
       }
     }
   }
