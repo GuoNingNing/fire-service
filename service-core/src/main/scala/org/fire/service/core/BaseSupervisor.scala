@@ -2,7 +2,7 @@ package org.fire.service.core
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.slf4j.{Logger, LoggerFactory}
+import com.google.protobuf.GeneratedMessage
 
 import scala.collection.mutable
 import scala.collection.JavaConversions._
@@ -14,13 +14,11 @@ import scala.util.{Failure, Success, Try}
   *
   */
 
-trait BaseSupervisor extends BaseActor {
-  val logger: Logger = LoggerFactory.getLogger(getClass)
-}
+trait BaseSupervisor extends BaseActor
 
-class Supervisor extends BaseSupervisor {
+class Supervisor(val config: Config = ConfigFactory.load()) extends BaseSupervisor {
 
-  val config = ConfigFactory.load()
+
   val actorSet = mutable.Set.empty[ActorRef]
 
   // TODO: 添加ShutDown 释放资源啊等等 ..
@@ -47,7 +45,7 @@ class Supervisor extends BaseSupervisor {
         context.actorOf(Props(clazz), name = name)
       } match {
         case Success(actor) =>
-          logger.info(s"success start actor for clazz $clazzName ")
+          logger.info(s"success start actor $actor ")
           actorSet.add(actor)
         case Failure(f) =>
           logger.error(s"failure start actor for clazz $clazzName ${f.getMessage}")

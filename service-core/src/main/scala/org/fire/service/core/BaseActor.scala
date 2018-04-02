@@ -1,6 +1,7 @@
 package org.fire.service.core
 
 import akka.actor.Actor
+import org.slf4j.{Logger, LoggerFactory}
 
 /**
   * Created by guoning on 2018/1/25.
@@ -12,4 +13,6 @@ import akka.actor.Actor
   *
   *
   */
-trait BaseActor extends Actor with akka.actor.ActorLogging
+trait BaseActor extends Actor {
+  val logger: Logger = LoggerFactory.getLogger(getClass)
+}

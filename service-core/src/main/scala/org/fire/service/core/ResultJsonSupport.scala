@@ -1,9 +1,12 @@
 package org.fire.service.core
 
+import org.fire.service.core.app.AppInfo
+import org.fire.service.core.app.AppManager.Submit
 import spray.httpx.SprayJsonSupport
 import spray.json.{DefaultJsonProtocol, JsArray, JsFalse, JsNull, JsNumber, JsObject, JsString, JsTrue, JsValue, JsonFormat, RootJsonFormat, deserializationError, _}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.language.reflectiveCalls
 
 /**
@@ -86,6 +89,10 @@ object ResultJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
   implicit def resultFormats: RootJsonFormat[ResultMsg] = jsonFormat3(ResultMsg)
 
   implicit def userFormats: RootJsonFormat[User] = jsonFormat2(User)
+
+  implicit def submitInfoFormats: RootJsonFormat[Submit] = jsonFormat2(Submit)
+
+  implicit def appFormats: RootJsonFormat[AppInfo] = jsonFormat5(AppInfo)
 
   def success(data: Any) = ResultMsg(0, "success", data)
 

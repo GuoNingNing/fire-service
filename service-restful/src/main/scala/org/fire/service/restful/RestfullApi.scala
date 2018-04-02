@@ -5,6 +5,7 @@ import com.typesafe.config.Config
 import org.fire.service.core.BaseRoute
 import org.slf4j.{Logger, LoggerFactory}
 import spray.routing.{Route, SimpleRoutingApp}
+import com.typesafe.config.ConfigFactory
 
 import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
