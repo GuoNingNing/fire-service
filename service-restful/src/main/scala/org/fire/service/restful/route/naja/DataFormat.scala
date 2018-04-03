@@ -24,6 +24,9 @@ object DataFormat extends DefaultJsonProtocol with SprayJsonSupport{
   implicit val dingFormat = jsonFormat3(Ding)
   implicit val mailFormat = jsonFormat10(Mail)
   implicit val weChatFormat = jsonFormat3(WeChat)
+  implicit val containerFormat = jsonFormat4(Container)
+  implicit val sparkAppFormat = jsonFormat6(SparkApp)
+  implicit val hostJobFormat = jsonFormat3(HostJob)
 }
 
 
@@ -110,6 +113,20 @@ sealed trait Row extends Serializable{
 sealed trait RowRead extends Serializable
 
 case class ProcessInfo(total: Int)
+
+
+/*
+* Container 表示yarn job的appId和containerId以及所在主机Id
+* HostContainer 表示一台主机上含有的container数量
+* */
+case class Container(hostId: String, appId: String, containerId: String, timestamp: Long)
+case class SparkApp(hostId: String,
+                    appId: String,
+                    userClass: String,
+                    appName: String,
+                    containers: List[Container],
+                    timestamp: Long)
+case class HostJob(hostId: String, hostApp: List[SparkApp], hostContainer: List[Container])
 
 /*
 * 在内存中存在的一台主机的数据结构
