@@ -1,11 +1,17 @@
 package org.fire.service.restful
 
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
+import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
 import org.fire.service.core.Supervisor
+import org.fire.service.core.app.AppManager
 
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 /**
@@ -28,7 +34,7 @@ object FireService {
     val system = ActorSystem("FireService", config)
 
     logger.info("FireService starting ...")
-    val supervisor = system.actorOf(Props[Supervisor], Supervisor.NAME)
+    val supervisor = system.actorOf(Props(classOf[Supervisor], config), Supervisor.NAME)
 
     new RestfullApi(system, config).start()
 

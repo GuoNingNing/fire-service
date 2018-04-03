@@ -20,11 +20,11 @@ class MonitorActor(val config: Config) extends Actor with ActorLogging{
 
   override def receive: Receive = {
     case ding: Ding =>
-      SendManager.sendDing(ding)
+//      SendManager.sendDing(ding)
       log.info(s"send ${ding.msg} to Ding")
 
     case mail: Mail =>
-      SendManager.sendEmail(mail)
+//      SendManager.sendEmail(mail)
       log.info(s"send ${mail.msg} to Mail")
 
     case weChat: WeChat =>
