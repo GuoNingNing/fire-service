@@ -1,20 +1,22 @@
 package org.fire.service.core.app
 
 import java.io.{File, PrintWriter}
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
+import akka.pattern.ask
+import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
-import org.fire.service.core.{BaseActor, app}
+import org.fire.service.core.BaseActor
 import org.fire.service.core.ResultJsonSupport._
 import org.fire.service.core.app.AppManager.Submit
+import spray.json._
 
-import scala.collection.mutable
+import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.sys.process.{Process, _}
-import spray.json._
-import DefaultJsonProtocol._
 
 
 /**
@@ -30,30 +32,14 @@ class AppManager extends BaseActor {
   private lazy val config = ConfigFactory.load()
 
   private lazy val appid_r = """application_\d{13}_\d+""".r
-
-  private lazy val submitApps = new mutable.HashMap[String, AppInfo]()
+  private lazy val appidToAppInfo = new ConcurrentHashMap[String, AppInfo]()
+  private lazy val submitToAppid = new ConcurrentHashMap[String, String]()
 
 
   override def preStart(): Unit = {
 
-    readSubmitAppsFromFile()
+    readAppidToAppInfo()
     context.system.scheduler.schedule(60 seconds, 5 seconds, self, CheckAppState)
-  }
-
-  /**
-    * 检查 App状态
-    */
-  private def checkAppState(): Unit = {
-    logger.info(s"check for app timeout ...")
-    val currentTime = System.currentTimeMillis()
-
-    val needRestart = submitApps.values.filter(x => x.lastHeartbeat < currentTime - x.period && x.state != AppState.UNKNOWN)
-
-    for (app <- needRestart) {
-      logger.warn(s"restart app $app")
-      submitApps.remove(app.appId)
-      self ! app.submitInfo
-    }
   }
 
 
@@ -63,14 +49,72 @@ class AppManager extends BaseActor {
 
     case Heartbeat(appId, period) => heartbeat(appId, period)
 
-    case Monitors => sender() ! submitApps.values
+    case Monitors => sender() ! appidToAppInfo.values.toList
 
     case Kill(appId) => KillApp(appId)
 
-    case CheckAppState => checkAppState()
+    case CheckAppState => checkAndRestart()
 
   }
 
+  /**
+    * 是否需要重启
+    *
+    * @param x
+    * @return
+    */
+  def isNeedRestart(x: AppInfo): Boolean = {
+    x.state match {
+      //   提交后一份粥还未收到心跳，则认为启动时报，尝试重启
+      case AppState.SUBMITED => x.lastHeartbeat < System.currentTimeMillis() - 60 * 1000
+      //   App 成功运行后，超过指定周期，没有收到心跳，则认为APP运行出错，尝试重启
+      case AppState.RUNNING => x.lastHeartbeat < System.currentTimeMillis() - x.period
+      //   通过接口杀死,多次重启失败的APP 不再重启
+      case AppState.KILLED | AppState.FAILED => false
+    }
+  }
+
+  /**
+    * 检查并重启APP
+    */
+  private def checkAndRestart(): Unit = {
+    appidToAppInfo.values.filter(isNeedRestart).foreach { app =>
+      logger.warn(s"restart app $app")
+      restart(appidToAppInfo.remove(app.appId))
+    }
+  }
+
+  /**
+    * 重启
+    *
+    * @param appInfo
+    */
+  private def restart(appInfo: AppInfo): Unit = {
+    implicit val timeout: Timeout = Timeout(1, TimeUnit.MINUTES)
+
+    Future {
+      (self ? appInfo.submitInfo).map {
+        case StartSuccess(appid) =>
+          logger.info(s"restart success $appid")
+        case StartFailure => restartFailure()
+      }
+    }.recover {
+      case e: Exception =>
+        logger.error(e.getMessage)
+        restartFailure()
+    }
+
+    def restartFailure() = {
+      if (appInfo.restartCount < 3) {
+        logger.warn(s"restart failure $appInfo")
+        appidToAppInfo.put(appInfo.appId, appInfo.restart())
+      } else {
+        // TODO: 连续三次重启失败，则停止重启,加入告警机制
+        appidToAppInfo.put(appInfo.appId, appInfo.copy(state = AppState.FAILED))
+        logger.error(s"restart failure ${appInfo.restartCount} times")
+      }
+    }
+  }
 
   /**
     * 心跳检测
@@ -81,14 +125,13 @@ class AppManager extends BaseActor {
     */
   private def heartbeat(appId: String, period: Long) = {
     logger.info(s"receive heartbeat appId $appId ")
-    submitApps.get(appId) match {
-      case Some(app) =>
-        submitApps.put(appId, app.hearbeat(period))
-      case None =>
+    appidToAppInfo.get(appId) match {
+      case app: AppInfo =>
+        appidToAppInfo.put(appId, app.hearbeat(period))
+      case null =>
         logger.warn(s"receive heartbeat but not found appId $appId ")
     }
   }
-
 
 
   /**
@@ -105,54 +148,70 @@ class AppManager extends BaseActor {
 
     val future = Future[Int] {
       process ! ProcessLogger(
-        stdout => logger.info(stdout), stderr => {
+        stdout => {
+          if (appId == null) {
+            appId = (appid_r findFirstIn stdout).orNull
+          }
+          logger.info(stdout)
+        }, stderr => {
           if (appId == null) {
             appId = (appid_r findFirstIn stderr).orNull
-            logger.info(stderr)
           }
+          logger.info(stderr)
         })
     }
 
     future onSuccess {
-      case 0 => //启动成功，加入到监控列表
-        logger.info(s"Start-up success $submit")
-        submitApps.put(appId, AppInfo(appId, submit))
+      case msg =>
+        if (appId != null) {
+          logger.info(s"Start-up success $appId $submit")
 
-        writeSubmitAppsToFile()
-
-        currentSender ! s"Start-up success $appId"
-
-      case _ =>
-        logger.error(s"Start-up failure $submit")
-
-        currentSender ! "Start-up failure"
+          if (appidToAppInfo.containsKey(appId)) {
+            currentSender ! StartSuccess(s"the $appId is running don't repeat submit")
+          } else {
+            //启动成功，加入到监控列表
+            appidToAppInfo.put(appId, AppInfo(appId, submit))
+            currentSender ! StartSuccess(s"success submit $appId")
+          }
+          storeAppidToAppInfo()
+        } else {
+          currentSender ! StartFailure(msg.toString)
+        }
     }
 
     future onFailure {
       case e => logger.error(e.getMessage)
-        currentSender ! e.getMessage
+        currentSender ! StartFailure(e.getMessage)
     }
   }
 
 
+  /**
+    * 通过接口杀掉一个APP 并移除监控列表
+    *
+    * @param appId
+    */
   private def KillApp(appId: String): Unit = {
     val currentSender = sender()
-    val msg = submitApps.remove(appId) match {
-      case Some(appid) =>
-        writeSubmitAppsToFile()
+    val msg = appidToAppInfo.remove(appId) match {
+      case appid: AppInfo =>
+        storeAppidToAppInfo()
 
         val result = s"yarn application -kill $appId" !!
 
         logger.info(s"kill appId $appId $result")
         result
-      case None => s"the appId $appId is not in the monitors"
+      case null => s"the appId $appId is not in the monitors"
     }
 
     currentSender ! msg
   }
 
-  private def writeSubmitAppsToFile(): Unit = {
-    val file = new File("submitApps.json")
+  /**
+    * 监控信息写入文件
+    */
+  private def storeAppidToAppInfo(): Unit = {
+    val file = new File("appidToAppInfo.json")
 
     if (!file.exists()) {
       file.createNewFile()
@@ -160,7 +219,7 @@ class AppManager extends BaseActor {
     }
 
     val writer = new PrintWriter(file)
-    for (elem <- submitApps.values) {
+    for (elem <- appidToAppInfo.values) {
       val json = elem.toJson.compactPrint
       writer.println(json)
       logger.info(s"write appinfo $json")
@@ -169,14 +228,17 @@ class AppManager extends BaseActor {
     writer.close()
   }
 
-  private def readSubmitAppsFromFile(): Unit = {
-    val file = new File("submitApps.json")
+  /**
+    * 从文件中加载监控信息
+    */
+  private def readAppidToAppInfo(): Unit = {
+    val file = new File("appidToAppInfo.json")
     if (file.exists()) {
       val submitJson = Source.fromFile(file)
 
       for (elem <- submitJson.getLines()) {
         val appInfo = elem.parseJson.convertTo[AppInfo]
-        submitApps.put(appInfo.appId, appInfo)
+        appidToAppInfo.put(appInfo.appId, appInfo)
         logger.info(s"read appinfo $appInfo")
       }
       submitJson.close()
@@ -184,7 +246,7 @@ class AppManager extends BaseActor {
   }
 
   override def postStop(): Unit = {
-    writeSubmitAppsToFile()
+    storeAppidToAppInfo()
     logger.info(s"stop actor [$this]")
   }
 
@@ -198,7 +260,11 @@ object AppManager {
     * @param command
     * @param args
     */
-  case class Submit(command: String, args: Seq[String])
+  case class Submit(command: String, args: Seq[String]) {
+    override def toString: String = {
+      s"$command ${args.mkString(" ")}"
+    }
+  }
 
   /**
     * 心跳
@@ -214,67 +280,47 @@ object AppManager {
 
   case object CheckAppState
 
+  case class StartSuccess(appId: String)
+
+  case class StartFailure(msg: String)
+
 }
 
 /**
   *
-  * @param appId
-  * @param submitInfo
-  * @param period
-  * @param lastHeartbeat
-  * @param state
+  * @param appId         applicationId
+  * @param submitInfo    提交信息
+  * @param period        心跳周期
+  * @param lastHeartbeat 最后心跳时间
+  * @param state         状态
   */
 case class AppInfo(
                     appId: String,
                     submitInfo: Submit,
                     var period: Long = 0,
                     var lastHeartbeat: Long = 0,
-                    var state: String = AppState.UNKNOWN) {
+                    var restartCount: Int = 0,
+                    var lastStarttime: Long = System.currentTimeMillis(),
+                    var state: String = AppState.SUBMITED) {
 
   def hearbeat(_period: Long): AppInfo = {
     lastHeartbeat = System.currentTimeMillis()
-    state = AppState.ALIVE
+    state = AppState.RUNNING
     period = _period
     this
   }
 
+  def restart(): AppInfo = {
+    restartCount = restartCount + 1
+    lastStarttime = System.currentTimeMillis()
+    this
+  }
 }
 
 object AppState {
-
-  def main(args: Array[String]): Unit = {
-    val appInfo = AppInfo("a", Submit("a", Seq("bbb")))
-    val appInfo2 = AppInfo("b", Submit("b", Seq("bbb")))
-
-    val submitApps = new mutable.HashMap[String, AppInfo]()
-
-    submitApps.put(appInfo.appId, appInfo)
-    submitApps.put(appInfo2.appId, appInfo2)
-
-    def writeSubmitAppsToFile(): Unit = {
-      val file = new File("submitApps.json")
-
-      if (!file.exists()) {
-        file.createNewFile()
-        println(s"create new file $file")
-      }
-
-      val writer = new PrintWriter(file)
-      for (elem <- submitApps.values) {
-        val json = elem.toJson.compactPrint
-        writer.println(json)
-        println(s"write appinfo $json")
-      }
-
-      writer.close()
-    }
-
-    writeSubmitAppsToFile()
-  }
-
-
-  val UNKNOWN = "unknown"
-  val ALIVE = "alive"
+  val SUBMITED = "submited"
+  val RUNNING = "running"
+  val FAILED = "failed"
   val KILLED = "killed"
 }
 

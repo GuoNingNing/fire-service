@@ -5,7 +5,7 @@ import akka.pattern.ask
 import org.fire.service.core.BaseRoute
 import org.fire.service.core.ResultJsonSupport._
 import org.fire.service.core.app.AppManager
-import org.fire.service.core.app.AppManager.{Kill, Monitors, Submit}
+import org.fire.service.core.app.AppManager._
 import spray.http.{MediaTypes, StatusCodes}
 import spray.routing.Route
 import org.fire.service.core.app.AppInfo
@@ -31,7 +31,7 @@ class AppManagerRoute(override val system: ActorSystem) extends BaseRoute {
     (get & path("monitors")) {
       respondWithMediaType(MediaTypes.`application/json`) { ctx =>
         (appManager ? Monitors).map {
-          case apps: Iterable[AppInfo] => ctx.complete(StatusCodes.OK, apps)
+          case apps: List[AppInfo] => ctx.complete(StatusCodes.OK, apps)
         }.recover {
           case e: Exception =>
             logger.error(e.getMessage)
@@ -63,7 +63,8 @@ class AppManagerRoute(override val system: ActorSystem) extends BaseRoute {
 
         respondWithMediaType(MediaTypes.`application/json`) { ctx =>
           appManager ? Submit(s"$deployPath/${submit.command}", submit.args) map {
-            case msg: String => ctx.complete(StatusCodes.OK, success(msg))
+            case StartSuccess(msg) => ctx.complete(StatusCodes.OK, success(msg))
+            case StartFailure(msg) => ctx.complete(StatusCodes.InternalServerError, failure(msg))
           } recover {
             case e: Exception =>
               logger.error(e.getMessage)

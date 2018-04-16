@@ -10,7 +10,7 @@
 mvn clean package -Pwithjar -Dmaven.test.skip=true
 
 #部署服务器地址
-deploy_server=bigdata-dev
+deploy_server=47.94.155.134
 
 #版本
 version=1.0

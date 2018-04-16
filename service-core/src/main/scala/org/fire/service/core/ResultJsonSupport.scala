@@ -92,7 +92,7 @@ object ResultJsonSupport extends DefaultJsonProtocol with SprayJsonSupport {
 
   implicit def submitInfoFormats: RootJsonFormat[Submit] = jsonFormat2(Submit)
 
-  implicit def appFormats: RootJsonFormat[AppInfo] = jsonFormat5(AppInfo)
+  implicit def appFormats: RootJsonFormat[AppInfo] = jsonFormat7(AppInfo)
 
   def success(data: Any) = ResultMsg(0, "success", data)
 
