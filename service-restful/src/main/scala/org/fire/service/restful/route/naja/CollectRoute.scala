@@ -135,18 +135,37 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     pathPrefix("send") {
       (post & path("ding")){
         entity(as[Ding]) { ding =>
-          SendManager.sendDing(ding)
+          monitorRef ! ding
           successJson("send ding successful")
         }
       }~(post & path("mail")){
         entity(as[Mail]) { mail =>
-          SendManager.sendEmail(mail)
+          monitorRef ! mail
           successJson("send email successful")
         }
       }~(post & path("wechat")){
         entity(as[WeChat]){ weChat =>
-          SendManager.sendWeChat(weChat)
+          monitorRef ! weChat
           successJson("send weChat successful")
+        }
+      }
+    }
+  }
+
+  private def appManager(): Route = {
+    pathPrefix("yarn"){
+      (post & path("app")){
+        entity(as[HostJob]) { hostJob =>
+          YarnAppManager.hostAppMap += hostJob.hostId -> hostJob.hostApp
+          YarnAppManager.hostContainerMap += hostJob.hostId -> hostJob.hostContainer
+          hostJob.hostApp.foreach(sparkApp => YarnAppManager.appIdMap += sparkApp.appId -> sparkApp)
+          hostJob.hostContainer.foreach {
+            container =>
+              val containers = YarnAppManager.appContainerMap.getOrDefault(container.appId,List.empty[Container])
+              val updateContainers = container :: containers.filter(_.containerId != container.containerId)
+              YarnAppManager.appContainerMap += container.appId -> updateContainers
+          }
+          successJson("successful")
         }
       }
     }
