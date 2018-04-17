@@ -7,7 +7,7 @@ fire-service是基于Spray的Restfull服务框架，可基于此工程，快速�
 
   
 # 部署
-    进入fire-service目录，之心 mvn clean package
+    进入fire-service目录，执行 mvn clean package
     Copy service-restful/target/service-restful-1.0.tar.gz到部署服务器并解压
     执行 bash restfull.sh start 启动服务
     执行 bash restfull.sh stop  停止服务 
