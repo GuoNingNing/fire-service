@@ -1,0 +1,9 @@
+2018-03-27 17:05:41,427 INFO  [o.fire.service.restful.FireService$] [] [] : FireService starting ...
+2018-03-27 17:05:41,447 INFO  [org.fire.service.core.Supervisor] [] [] : Supervisor starting ...
+2018-03-27 17:05:41,454 INFO  [org.fire.service.core.Supervisor] [] [] : load actor for clazz org.fire.service.restful.actor.HelloActor
+2018-03-27 17:05:41,456 INFO  [org.fire.service.core.Supervisor] [] [] : success start actor for clazz org.fire.service.restful.actor.HelloActor 
+2018-03-27 17:05:41,497 INFO  [org.fire.service.restful.RestfullApi] [] [] : Starting restfull api service...
+2018-03-27 17:05:41,906 INFO  [org.fire.service.restful.RestfullApi] [] [] : load route for clazz org.fire.service.restful.route.HelloRoute
+2018-03-27 17:05:41,919 INFO  [org.fire.service.restful.RestfullApi] [] [] : load route for clazz org.fire.service.restful.route.naja.CollectRoute
+2018-03-27 17:05:41,928 INFO  [org.fire.service.restful.RestfullApi] [] [] : registered route  org.fire.service.restful.route.HelloRoute@62277eaf
+2018-03-27 17:05:42,127 INFO  [org.fire.service.restful.RestfullApi] [] [] : registered route  org.fire.service.restful.route.naja.CollectRoute@5fb8fcc1
