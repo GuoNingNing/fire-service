@@ -3,3 +3,5 @@
 target
 *.iml
 out
+atmos.dir_IS_UNDEFINED
+log
