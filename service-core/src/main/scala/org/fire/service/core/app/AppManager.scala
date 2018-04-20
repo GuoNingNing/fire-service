@@ -38,6 +38,10 @@ class AppManager extends BaseActor {
 
   override def preStart(): Unit = {
 
+    /**
+      * 添加调度信息从文件中恢复
+      */
+    AppScheduler.recoveryCheckpoint(AppScheduler.checkpointFile)
     readAppidToAppInfo()
     context.system.scheduler.schedule(60 seconds, 5 seconds, self, CheckAppState)
   }
@@ -45,7 +49,10 @@ class AppManager extends BaseActor {
 
   override def receive: PartialFunction[Any, Unit] = {
 
-    case submit: Submit => submitApp(submit)
+    /**
+      * 添加submit程序,对原submit进行兼容
+      */
+    case submit: Submit => AppScheduler.submitApp(submit,sender())(submitApp)
 
     case Heartbeat(appId, period) => heartbeat(appId, period)
 
@@ -66,7 +73,7 @@ class AppManager extends BaseActor {
   def isNeedRestart(x: AppInfo): Boolean = {
     x.state match {
       //   提交后一份粥还未收到心跳，则认为启动时报，尝试重启
-      case AppState.SUBMITED => x.lastHeartbeat < System.currentTimeMillis() - 60 * 1000
+      case AppState.SUBMITED => x.lastStarttime < System.currentTimeMillis() - 60 * 1000
       //   App 成功运行后，超过指定周期，没有收到心跳，则认为APP运行出错，尝试重启
       case AppState.RUNNING => x.lastHeartbeat < System.currentTimeMillis() - x.period
       //   通过接口杀死,多次重启失败的APP 不再重启
@@ -82,6 +89,12 @@ class AppManager extends BaseActor {
       logger.warn(s"restart app $app")
       restart(appidToAppInfo.remove(app.appId))
     }
+
+    /**
+      * 添加调度程序检查是否需要被调度
+      * 参数是定时调度的时间间隔
+      */
+    AppScheduler.checkScheduledApp(5)
   }
 
   /**
