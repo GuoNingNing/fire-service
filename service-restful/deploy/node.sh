@@ -1,95 +1,135 @@
-#!/bin/bash -eu
-
-usage="Usage: node.sh nodeType (start|restart|stop|status)"
-
-if [ $# -eq 1 ]; then
-  echo $usage
-  exit 1
-fi
-
-### 脚本所在目录
-appdir=$(cd $(dirname $0);pwd)
-
-nodeType=$1
-shift
-command=$1
-
-LIB_DIR=$appdir/lib
-PID_DIR=$appdir/pid
-LOG_DIR=$appdir/log
-SCALA_HOME=/home/hdfs/gn/scala-2.11.8
-
-CDH_HOME=/opt/cloudera/parcels/CDH/lib
-HADOOP_CONF=/etc/hive/conf:/etc/hadoop/conf
-
-pid=$PID_DIR/$nodeType.pid
-
-CP=.:$LIB_DIR/*:$SCALA_HOME/lib/*
+#!/user/bin/env bash
+#如果想知道所有特性开关请使用set -o打印,是否需要各种特性请自行斟酌
+#如果想开启errexit就打开下一行注释
+#set -e
+#如果想开启nounset就打开下一行注释
+#set -u
+base=$(cd $(dirname $0);pwd)
 
 
-_start(){
-if [ -f $pid ]; then
-      if kill -0 `cat $pid` > /dev/null 2>&1; then
-        echo $nodeType node running as process `cat $pid`.  Stop it first.
-        exit 1
-      fi
-    fi
-    if [ ! -d "$PID_DIR" ]; then mkdir -p $PID_DIR; fi
-    if [ ! -d "$LOG_DIR" ]; then mkdir -p $LOG_DIR; fi
-    nohup /usr/java/jdk/bin/java -cp $CP org.fire.service.restful.FireService $nodeType >> $LOG_DIR/$nodeType.log &
-    nodeType_PID=$!
-    echo $nodeType_PID > $pid
-    echo "Started $nodeType node ($nodeType_PID)"
-}
-_stop(){
-    if [ -f $pid ]; then
-      TARGET_PID=`cat $pid`
-      if kill -0 $TARGET_PID > /dev/null 2>&1; then
-        echo Stopping process `cat $pid`...
-        kill $TARGET_PID
-      else
-        echo No $nodeType node to stop
-      fi
-      rm -f $pid
-    else
-      echo No $nodeType node to stop
-    fi
+function help(){
+	local usage="Usage: $base/$0 nodeType (start|restart|stop|status)"
+	echo $usage
 }
 
-_status(){
-  if [ -f $pid ]; then
-      if kill -0 `cat $pid` > /dev/null 2>&1; then
-        echo RUNNING
-        exit 0
-      else
-        echo STOPPED
-      fi
-    else
-      echo STOPPED
-    fi
+function create_dir(){
+	test $# -ne 2 && return
+
+	test ! -d $2 && mkdir -p $2
+	test "${!1}" == "" && eval "$1=$2"
 }
 
-case $command in
+function include(){
+	local f=${1:-"$HOME/.bash_profile"}
+	test -f $f && {
+		. $f;
+	}
+}
 
-  (start)
-   _start
-    ;;
+function build_classpath(){
+	local lib_dir=${1:-"$base/lib"}
+	test ! -d $lib_dir && {
+		echo ".:..";
+		return;
+	}
+	local classpath="."
+	local jar=""
+	for jar in $(ls $lib_dir)
+	do
+		classpath="$classpath:$lib_dir/$jar"
+	done
+	echo $classpath
+}
 
-  (restart)
-    _stop
-    _start
-  ;;
+function get_pid(){
+	local pid_dir=${1:-"$base/run"}
+	local node=$2
+	local pid=""
+	test ! -d $pid_dir && mkdir -p $pid_dir
+	if [ -f "$pid_dir/${node}.pid" ];then
+		pid=$(cat $pid_dir/${node}.pid)
+		test "$pid" == "" && return
+		if ! kill -0 $pid >/dev/null 2>&1;then
+			local rpid=$(ps -ef | grep $main_class | grep $base | grep -v grep | awk '{print $2}')
+			if [ "$rpid" != "" ];then
+				test "$pid" != "$rpid" && { 
+					pid=$rpid;
+					echo $pid > $pid_dir/${node}.pid
+				}
+			fi
+		fi
+	fi
+	echo $pid
+}
 
-  (stop)
-    _stop
-    ;;
 
-   (status)
-    _status
-    ;;
+function start(){
+	local node=$1
+	local pid=$(get_pid $run_dir $node)
+	local java=$JAVA_HOME/bin/java
+	local classpath=$(build_classpath $lib_dir)
+	
+	test ! -d $base/log && mkdir -p $base/log
+	if [ "$pid" == "" ];then
+		$java -cp $classpath org.fire.service.restful.FireService $node >$log_dir/$node.log.$(date +%Y%m%d%H%M%S) 2>&1 &
+		echo $! > $run_dir/${node}.pid
+		echo "$node start success."
+	else
+		echo "$node already started. $pid" >&2
+	fi
+}
+function stop(){
+    local node=$1
+	local pid=$(get_pid $run_dir $node)
+	if [ "$pid" == "" ];then
+		echo "$node already stop." >&2
+	else
+		kill -9 $pid
+		rm -rf $run_dir/${node}.pid
+		echo "$node stop success."
+	fi
+}
+function check_env(){
+	local envp=$1
+	test "$envp" == "" && {
+		echo "$envp not set" >&2;
+		exit;
+	}
+}
 
-  (*)
-    echo $usage
-    exit 1
-    ;;
-esac
+function status(){
+  local node=$1
+  local pid=$(get_pid $run_dir $node)
+  if [ "$pid" == "" ];then
+	  echo "STOP"
+  else
+	  echo "RUNNING"
+  fi
+}
+
+function main(){
+	local node=${2:-"restful"}
+	local cmd=${1:-"help"}
+
+	include
+	check_env "JAVA_HOME"
+	main_class="org.fire.service.restful.FireService"
+	lib_dir=$base/lib
+	run_dir=$base/run
+	log_dir=$base/log
+
+	case $cmd in
+		"start")
+			start $node;;
+		"stop")
+			stop $node;;
+		"status")
+			status $node;;
+		"restart")
+			stop $node
+			start $node;;
+		*)
+			help
+	esac
+}
+
