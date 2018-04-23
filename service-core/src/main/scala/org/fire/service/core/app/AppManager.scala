@@ -1,6 +1,7 @@
 package org.fire.service.core.app
 
 import java.io.{File, PrintWriter}
+import java.util.Properties
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import akka.pattern.ask
@@ -41,7 +42,7 @@ class AppManager extends BaseActor {
     /**
       * 添加调度信息从文件中恢复
       */
-    AppScheduler.recoveryCheckpoint(AppScheduler.checkpointFile)
+    //    AppScheduler.recoveryCheckpoint(AppScheduler.checkpointFile)
     readAppidToAppInfo()
     context.system.scheduler.schedule(60 seconds, 5 seconds, self, CheckAppState)
   }
@@ -52,7 +53,7 @@ class AppManager extends BaseActor {
     /**
       * 添加submit程序,对原submit进行兼容
       */
-    case submit: Submit => AppScheduler.submitApp(submit,sender())(submitApp)
+    case submit: Submit => AppScheduler.submitApp(submit, sender())(submitApp)
 
     case Heartbeat(appId, period) => heartbeat(appId, period)
 
@@ -73,11 +74,14 @@ class AppManager extends BaseActor {
   def isNeedRestart(x: AppInfo): Boolean = {
     x.state match {
       //   提交后一份粥还未收到心跳，则认为启动时报，尝试重启
-      case AppState.SUBMITED => x.lastStarttime < System.currentTimeMillis() - 60 * 1000
+      case AppState.SUBMITED if x.lastStarttime < System.currentTimeMillis() - 60 * 1000 => true
       //   App 成功运行后，超过指定周期，没有收到心跳，则认为APP运行出错，尝试重启
-      case AppState.RUNNING => x.lastHeartbeat < System.currentTimeMillis() - x.period
+      case AppState.RUNNING if x.lastHeartbeat < System.currentTimeMillis() - x.period =>
+        logger.warn(s"The heartbeat timeout  ${System.currentTimeMillis() - x.lastHeartbeat} lastHeartbeat ${x.lastHeartbeat} period ${x.period}")
+        true
       //   通过接口杀死,多次重启失败的APP 不再重启
-      case AppState.KILLED | AppState.FAILED => false
+      case _ => false
+
     }
   }
 
@@ -335,5 +339,12 @@ object AppState {
   val RUNNING = "running"
   val FAILED = "failed"
   val KILLED = "killed"
+
+  def main(args: Array[String]): Unit = {
+    "running" match {
+      case AppState.RUNNING => println("111")
+    }
+  }
+
 }
 
