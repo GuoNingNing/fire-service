@@ -41,8 +41,9 @@ class AppManager extends BaseActor {
 
     /**
       * 添加调度信息从文件中恢复
+      * 文件不存在的话,会把加载异常打印出来,不影响程序运行
       */
-    //    AppScheduler.recoveryCheckpoint(AppScheduler.checkpointFile)
+    AppScheduler.recoveryCheckpoint(AppScheduler.checkpointFile)
     readAppidToAppInfo()
     context.system.scheduler.schedule(60 seconds, 5 seconds, self, CheckAppState)
   }
@@ -59,7 +60,7 @@ class AppManager extends BaseActor {
 
     case Monitors => sender() ! appidToAppInfo.values.toList
 
-    case Kill(appId) => KillApp(appId)
+    case Kill(appId) => AppScheduler.removeApp(appId,sender())(killApp)
 
     case CheckAppState => checkAndRestart()
 
@@ -73,7 +74,7 @@ class AppManager extends BaseActor {
     */
   def isNeedRestart(x: AppInfo): Boolean = {
     x.state match {
-      //   提交后一份粥还未收到心跳，则认为启动时报，尝试重启
+      //   提交后一分钟后还未收到心跳，则认为启动出错，尝试重启
       case AppState.SUBMITED if x.lastStarttime < System.currentTimeMillis() - 60 * 1000 => true
       //   App 成功运行后，超过指定周期，没有收到心跳，则认为APP运行出错，尝试重启
       case AppState.RUNNING if x.lastHeartbeat < System.currentTimeMillis() - x.period =>
@@ -208,7 +209,7 @@ class AppManager extends BaseActor {
     *
     * @param appId
     */
-  private def KillApp(appId: String): Unit = {
+  private def killApp(appId: String): Unit = {
     val currentSender = sender()
     val msg = appidToAppInfo.remove(appId) match {
       case appid: AppInfo =>

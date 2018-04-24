@@ -35,6 +35,7 @@ object AppScheduler {
     val value = ScheduledApp(scheduled,submit)
     jobMap += key -> value
     scheduledMap += key -> scheduled
+    flushCheckpoint(checkpointFile)
   }
 
   /**
@@ -66,8 +67,18 @@ object AppScheduler {
     }
 
     registerScheduledApp(submit,scheduled)
-    flushCheckpoint(checkpointFile,getScheduledKey(submit),scheduled)
     runApp(submit)
+  }
+
+  def removeApp(key: String,sender: ActorRef)(f: String => Unit): Unit = {
+    if(key.indexOf("\u0000") > 0){
+      jobMap -= key
+      scheduledMap -= key
+      sender ! s"remove scheduled app ${key.split("\u0000").mkString(" ")} success."
+      flushCheckpoint(checkpointFile)
+    }else{
+      f(key)
+    }
   }
 
   def runApp(submit: Submit): Unit = {
@@ -101,16 +112,13 @@ object AppScheduler {
     }
   }
 
-  def flushCheckpoint(fileName: String,key: String,scheduled: Long): Unit = {
+  def flushCheckpoint(fileName: String): Unit = {
     try {
       val file = new File(fileName)
-      var printWriter: PrintWriter = null.asInstanceOf[PrintWriter]
-      if (file.exists() && file.isFile) {
-        printWriter = new PrintWriter(new FileOutputStream(file, true))
-      } else {
-        printWriter = new PrintWriter(file)
+      val printWriter = new PrintWriter(file)
+      jobMap.foreach { case (jobName, scheduledApp) =>
+        printWriter.println(getScheduledKey(scheduledApp.submit)+s"\u0000${scheduledApp.scheduled}")
       }
-      printWriter.append(key+s"\u0000$scheduled\n")
     } catch {
       case NonFatal(e) =>
         logger.error("flushCheckpoint failed. ",e)
