@@ -16,6 +16,8 @@ import scala.util.{Failure, Success, Try}
 
 /**
   * Created by cloud on 18/4/26.
+  * 这是 AppManager 对应的使用appName 管理任务的版本
+  * 对应的使用的是 SparkYarnAppManager actor
   */
 class SparkYarnAppManagerRoute(override val system: ActorSystem) extends BaseRoute{
   override val pathPrefix: String = "app"

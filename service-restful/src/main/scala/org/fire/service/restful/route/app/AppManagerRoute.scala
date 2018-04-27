@@ -16,7 +16,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 /**
   * App 管理路由
   *
-  * @param system
+  * @param system actorSystem
+  * 
   */
 class AppManagerRoute(override val system: ActorSystem) extends BaseRoute {
   override val pathPrefix: String = "app"
