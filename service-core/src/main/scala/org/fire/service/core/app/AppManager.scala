@@ -272,6 +272,8 @@ class AppManager extends BaseActor {
 
 object AppManager {
 
+  val NAME = "AppManager"
+
   /**
     * 执行 shell
     *

@@ -191,7 +191,9 @@ class SparkYarnAppManager extends BaseActor{
   private def cancelMonitor(appKill: AppKill): Unit = {
     if(appMap.contains(appKill.appName)){
       appMap -= appKill.appName
+      sender() ! successRes(s"${appKill.appName} cancel success.")
     }
+    sender() ! failureRes(s"${appKill.appName} not found.")
   }
 
   private def flushCheckpoint(): Unit = {

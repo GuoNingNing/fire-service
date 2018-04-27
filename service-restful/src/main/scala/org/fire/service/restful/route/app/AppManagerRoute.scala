@@ -2,7 +2,7 @@ package org.fire.service.restful.route.app
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
-import org.fire.service.core.BaseRoute
+import org.fire.service.core.{BaseRoute, Supervisor}
 import org.fire.service.core.ResultJsonSupport._
 import org.fire.service.core.app.AppManager
 import org.fire.service.core.app.AppManager._
@@ -21,7 +21,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 class AppManagerRoute(override val system: ActorSystem) extends BaseRoute {
   override val pathPrefix: String = "app"
 
-  private lazy val appManager = system.actorSelection("/user/Supervisor/AppManager")
+  private lazy val appManager = system.actorSelection(s"/user/${Supervisor.NAME}/${AppManager.NAME}")
 
   private lazy val deployPath = config.getString("app.manager.path")
 

@@ -11,7 +11,7 @@ import akka.actor.{ActorRefFactory, ActorSystem}
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.{Logger, LoggerFactory}
-import spray.http.{MediaTypes, StatusCodes}
+import spray.http.{MediaTypes, StatusCode, StatusCodes}
 import spray.routing.{ExceptionHandler, HttpService, RejectionHandler, Route}
 
 import scala.language.reflectiveCalls
@@ -55,6 +55,11 @@ trait BaseRoute extends HttpService {
         ctx.complete(StatusCodes.NotFound, failure("Oh man, what you are looking for ?"))
       }
   }
+
+  def jsonResponse(statusCode: StatusCode,data: ResultMsg): Route =
+    respondWithMediaType(MediaTypes.`application/json`) {
+      ctx => ctx.complete(statusCode,data)
+    }
 
 
   protected def routes(): Route

@@ -175,11 +175,6 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   private def failureJson(data: String): Route = jsonResponse(StatusCodes.OK,failure(data))
   private def errorJson(statusCode: StatusCode,data: String): Route = jsonResponse(statusCode,failure(data))
 
-  private def jsonResponse(statusCode: StatusCode,data: ResultMsg): Route =
-    respondWithMediaType(MediaTypes.`application/json`) {
-      ctx => ctx.complete(statusCode,data)
-    }
-
   private def getHost(hostRow: HostRow): List[Host] = {
 
     if (DataManager.hostIdMap.containsKey(hostRow.id)) {
