@@ -22,7 +22,6 @@ import scala.util.{Failure, Success, Try}
 class SparkYarnAppManagerRoute(override val system: ActorSystem) extends BaseRoute{
   override val pathPrefix: String = "app"
   private lazy val appManager = system.actorSelection(s"/user/${Supervisor.NAME}/${SparkYarnAppManager.NAME}")
-  private lazy val runCmd = config.getString("app.manager.submit.command")
 
   override def routes(): Route = {
     monitor()

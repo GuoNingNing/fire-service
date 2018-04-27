@@ -31,10 +31,11 @@ class SparkYarnAppManager extends BaseActor{
 
   private lazy val conf = ConfigFactory.load()
   private val appMap = new ConcurrentHashMap[String,AppStatus]()
-  private val submitWaitTime = conf.getLong("appManager.submit.wait.timeout")
-  private val checkAppInterval = conf.getInt("appManager.check.app.interval")
-  private val checkpointFile = conf.getString("appManager.checkpoint.file")
-  private val yarnConfigFile = conf.getString("appManager.yarn.conf.file")
+  private val submitWaitTime = conf.getLong("app.manager.submit.wait.timeout")
+  private val checkAppInterval = conf.getInt("app.manager.check.app.interval")
+  private val checkpointFile = conf.getString("app.manager.checkpoint.file")
+  private val yarnConfigFile = conf.getString("app.manager.yarn.conf.file")
+  private val cmdPath = conf.getString("app.manager.path")
   private var hadoopConf: Configuration = _
   private var yarnConf: YarnConfiguration = _
   private var yarnClient: YarnClient = _
@@ -118,7 +119,7 @@ class SparkYarnAppManager extends BaseActor{
 
   private def runApp(appName: String): Unit = {
     val app = appMap(appName)
-    val process = Process("run.sh",List(app.conf))
+    val process = Process(s"$cmdPath/run.sh",List(app.conf))
     val future = Future {
       process.run().exitValue()
     }
