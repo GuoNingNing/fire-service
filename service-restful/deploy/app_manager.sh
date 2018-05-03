@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 base=$(cd $(dirname $0);pwd)
 
+test -f $HOME/.bash_profile && . $HOME/.bash_profile
+
 function get_abs_file(){
 	local d=$(cd $(dirname $1);pwd)
 	echo "$d/$(basename $1)"
@@ -11,8 +13,6 @@ function getCurl(){
 	local curl_cmd="curl -s -X $method -H 'Content-Type: application/json'"
 	echo -n "$curl_cmd"
 }
-
-http_server='http://127.0.0.1:8920/app'
 
 function submit(){
 	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'"]}'
