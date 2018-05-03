@@ -1,4 +1,4 @@
-#!/user/bin/env bash
+#!/usr/bin/env bash
 #如果想知道所有特性开关请使用set -o打印,是否需要各种特性请自行斟酌
 #如果想开启errexit就打开下一行注释
 #set -e
