@@ -21,6 +21,13 @@ function submit(){
 	$curl_cmd "$http_server/submit" -d "$data"
 }
 
+function scheduled(){
+	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'","scheduled","'$2'"]}'
+	local curl_cmd=$(getCurl "POST")
+
+	$curl_cmd "$http_server/submit" -d "$data"
+}
+
 #function waitSubmit(){}
 
 function sendHeartbeat(){
@@ -49,6 +56,7 @@ function getMonitors(){
 function printHelp(){
 	echo  "Usage: $0 -h server_ip:port parameter"
 	echo -e "Parameter:\n\tsubmit conf"
+	echo -e "\tscheduled conf interval"
 	echo -e "\tkill appid"
 	echo -e "\tmonitor"
 	echo -e "\theartbeat appid period"
@@ -77,6 +85,13 @@ function main(){
 				submit_conf=${args[i+1]}
 				_check_ $submit_conf
 				submit $submit_conf
+				exit;;
+			"scheduled")
+				submit_conf=${args[i+1]}
+				interval_time=${args[i+2]}
+				_check_ $submit_conf
+				_check_ $interval_time
+				scheduled $submit_conf $interval_time
 				exit;;
 			"kill")
 				app_id=${args[i+1]}
