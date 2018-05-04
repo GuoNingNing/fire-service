@@ -8,49 +8,47 @@ function get_abs_file(){
 	echo "$d/$(basename $1)"
 }
 
-function getCurl(){
-	local method=${1:-"POST"}
-	local curl_cmd="curl -s -X $method -H 'Content-Type: application/json'"
-	echo -n "$curl_cmd"
+function curl_cmd(){
+	local url=$1
+	local method=${2:-"POST"}
+	local data=$3
+	test "x$data" != "x" && data="-d $data"
+	local curl_param="-s -X $method -H 'Content-Type: application/json'"
+	curl $curl_param $url $data
 }
 
 function submit(){
 	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'"]}'
-	local curl_cmd=$(getCurl "POST")
 
-	$curl_cmd "$http_server/submit" -d "$data"
+	curl_cmd "$http_server/submit" "POST" "$data"
 }
 
 function scheduled(){
 	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'","scheduled","'$2'"]}'
-	local curl_cmd=$(getCurl "POST")
 
-	$curl_cmd "$http_server/submit" -d "$data"
+	curl_cmd "$http_server/submit" "POST" "$data"
 }
 
 #function waitSubmit(){}
 
 function sendHeartbeat(){
-	local curl_cmd=$(getCurl "GET")
 	test $# -ne 2 && return
 	local app_id=$1
 	local period=$2
 	let period=$period*3
 
-	$curl_cmd "$http_server/heartbeat/$app_id/$period"
+	curl_cmd "$http_server/heartbeat/$app_id/$period" "GET"
 }
 
 function killApp(){
-	local curl_cmd=$(getCurl "GET")
 	test $# -lt 1 && return
 	local app_id=$1
 
-	$curl_cmd "$http_server/kill/$app_id"
+	curl_cmd "$http_server/kill/$app_id" "GET"
 }
 
 function getMonitors(){
-	local curl_cmd=$(getCurl "GET")
-	$curl_cmd "$http_server/monitors"
+	curl_cmd "$http_server/monitors" "GET"
 }
 
 function printHelp(){
