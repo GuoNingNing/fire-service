@@ -31,11 +31,11 @@ class SparkYarnAppManager extends BaseActor{
 
   private lazy val conf = ConfigFactory.load()
   private val appMap = new ConcurrentHashMap[String,AppStatus]()
-  private val submitWaitTime = conf.getLong("app.manager.submit.wait.timeout")
-  private val checkAppInterval = conf.getInt("app.manager.check.app.interval")
-  private val checkpointFile = conf.getString("app.manager.checkpoint.file")
-  private val yarnConfigFile = conf.getString("app.manager.yarn.conf.file")
-  private val cmdPath = conf.getString("app.manager.path")
+  private lazy val submitWaitTime = conf.getLong("app.manager.submit.wait.timeout")
+  private lazy val checkAppInterval = conf.getInt("app.manager.check.app.interval")
+  private lazy val checkpointFile = conf.getString("app.manager.checkpoint.file")
+  private lazy val yarnConfigFile = conf.getString("app.manager.yarn.conf.file")
+  private lazy val cmdPath = conf.getString("app.manager.path")
   private var hadoopConf: Configuration = _
   private var yarnConf: YarnConfiguration = _
   private var yarnClient: YarnClient = _
@@ -99,7 +99,7 @@ class SparkYarnAppManager extends BaseActor{
       logger.warn(s"get appName failed. config $conf")
       sender() ! failureRes("parameter error.")
     }else{
-      if(!appMap.contains(appName)) {
+      if(!appMap.containsKey(appName)) {
         appMap += appName -> createAppStatus(appName,conf,appType)
         runApp(appName)
         sender() ! successRes(s"success submit $appName.")
@@ -150,11 +150,11 @@ class SparkYarnAppManager extends BaseActor{
     appStatus.appType match {
       case MONITOR =>
         appStatus.state match {
-          case AppState.SUBMITED if appStatus.lastStartTime < System.currentTimeMillis() - submitWaitTime => true
+          case AppState.SUBMITED if appStatus.lastStartTime < System.currentTimeMillis() - submitWaitTime =>
+            logger.warn(s"The submit wait timeout, last startTime ${appStatus.lastStartTime}.")
+            true
           case AppState.RUNNING if appStatus.lastHeartbeat < System.currentTimeMillis() - appStatus.period =>
-            logger.warn(s"The heartbeat timeout,last heartbeat ${
-              appStatus.lastHeartbeat
-            }.")
+            logger.warn(s"The heartbeat timeout,last heartbeat ${appStatus.lastHeartbeat}.")
             true
           case _ => false
         }
