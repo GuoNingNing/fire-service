@@ -58,7 +58,8 @@ function killApp(){
 }
 
 function getMonitors(){
-	curl_cmd "$http_server/monitors" "GET"
+	local app_name=${1:-"0x00001"}
+	curl_cmd "$http_server/monitors/$app_name" "GET"
 }
 
 function printHelp(){
@@ -66,7 +67,7 @@ function printHelp(){
 	echo -e "Parameter:\n\tsubmit conf"
 	echo -e "\tscheduled conf interval"
 	echo -e "\tkill appid"
-	echo -e "\tmonitor"
+	echo -e "\tmonitors app_name"
 	echo -e "\theartbeat appid period"
 }
 
@@ -79,7 +80,7 @@ function _check_(){
 
 function main(){
 	local args=($@)
-	local http_server=${1:-"127.0.0.1:8920"}
+	local http_server="http://127.0.0.1:8920/app"
 	
 	local i=0
 	for ((i=0;i<$#;i++))
@@ -107,7 +108,8 @@ function main(){
 				killApp $app_id
 				exit;;
 			"monitors")
-				getMonitors
+				app_name=${args[i+1]}
+				getMonitors $app_name
 				exit;;
 			"heartbeat")
 				app_id=${args[i+1]}
