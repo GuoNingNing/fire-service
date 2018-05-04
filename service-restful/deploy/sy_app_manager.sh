@@ -25,26 +25,29 @@ function curl_cmd(){
 }
 
 function submit(){
-	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'"]}'
+	test "x$1" == "x" && return
+	local data='{"conf":"'$(get_abs_file $1)'"}'
 
 	curl_cmd "$http_server/submit" "POST" "$data"
 }
 
 function scheduled(){
-	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'","scheduled","'$2'"]}'
+	test $# -ne 2 && return
+	local data='{"conf":"'$(get_abs_file $1)'","interval":"'$2'"}'
 
-	curl_cmd "$http_server/submit" "POST" "$data"
+	curl_cmd "$http_server/scheduled" "POST" "$data"
 }
 
 #function waitSubmit(){}
 
 function sendHeartbeat(){
-	test $# -ne 2 && return
-	local app_id=$1
-	local period=$2
+	test $# -ne 3 && return
+	local app_name=$1
+	local app_id=$2
+	local period=$3
 	let period=$period*3
 
-	curl_cmd "$http_server/heartbeat/$app_id/$period" "GET"
+	curl_cmd "$http_server/heartbeat/$app_name/$app_id/$period" "GET"
 }
 
 function killApp(){
