@@ -244,7 +244,7 @@ object SparkYarnAppManager {
                        var appId: String = "",
                        var period: Int = 0,
                        var lastHeartbeat: Long = 0,
-                       var lastStartTime: Long = 0,
+                       var lastStartTime: Long = System.currentTimeMillis(),
                        var restartCount: Int = 0,
                        var state: String = AppState.SUBMITED) {
     def heartbeat(period: Int): AppStatus = {
