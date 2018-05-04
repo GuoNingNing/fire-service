@@ -79,7 +79,7 @@ class SparkYarnAppManager extends BaseActor{
   private def getAppName(conf: String): String = Try {
     val prop = new Properties()
     prop.load(new BufferedInputStream(new FileInputStream(conf)))
-    prop.getProperty("spark.app.name",prop.getProperty("spark.run.main"))
+    prop.getProperty("spark.app.name",prop.getProperty("spark.run.main")+".App")
   }.getOrElse("")
 
   private def createAppStatus(appName: String,
