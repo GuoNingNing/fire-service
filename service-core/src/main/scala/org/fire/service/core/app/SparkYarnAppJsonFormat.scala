@@ -10,12 +10,22 @@ object SparkYarnAppJsonFormat extends DefaultJsonProtocol with SprayJsonSupport 
   import SparkYarnAppManager._
   import SparkYarnAppEnumeration.AppType
   import SparkYarnAppEnumeration.AppType.AppType
-  implicit val appType = new JsonFormat[AppType] {
+  import SparkYarnAppEnumeration.AppStateType
+  import SparkYarnAppEnumeration.AppStateType.AppStateType
+  implicit val appTypeFormat = new JsonFormat[AppType] {
     override def write(obj: AppType): JsValue = JsObject("appType" -> JsString(obj.toString))
 
     override def read(json: JsValue): AppType = json match {
       case JsString(obj) => AppType.withName(obj)
       case _ => throw DeserializationException("appType excepted.")
+    }
+  }
+  implicit val appStateTypeFormat = new JsonFormat[AppStateType] {
+    override def write(obj: AppStateType): JsValue = JsObject("appState" -> JsString(obj.toString))
+
+    override def read(json: JsValue): AppStateType = json match {
+      case JsString(obj) => AppStateType.withName(obj)
+      case _ => throw DeserializationException("appState excepted.")
     }
   }
   implicit val appFormat = jsonFormat1(App)

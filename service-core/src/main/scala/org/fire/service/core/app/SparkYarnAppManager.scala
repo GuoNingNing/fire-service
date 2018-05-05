@@ -28,6 +28,7 @@ class SparkYarnAppManager extends BaseActor{
 
   import SparkYarnAppManager._
   import SparkYarnAppEnumeration.AppType._
+  import SparkYarnAppEnumeration.AppStateType._
 
   private lazy val conf = ConfigFactory.load()
   private val appMap = new ConcurrentHashMap[String,AppStatus]()
@@ -150,10 +151,10 @@ class SparkYarnAppManager extends BaseActor{
     appStatus.appType match {
       case MONITOR =>
         appStatus.state match {
-          case AppState.SUBMITED if appStatus.lastStartTime < System.currentTimeMillis() - submitWaitTime =>
+          case SUBMIT if appStatus.lastStartTime < System.currentTimeMillis() - submitWaitTime =>
             logger.warn(s"The submit wait timeout, last startTime ${appStatus.lastStartTime}.")
             true
-          case AppState.RUNNING if appStatus.lastHeartbeat < System.currentTimeMillis() - appStatus.period =>
+          case RUNNING if appStatus.lastHeartbeat < System.currentTimeMillis() - appStatus.period =>
             logger.warn(s"The heartbeat timeout,last heartbeat ${appStatus.lastHeartbeat}.")
             true
           case _ => false
@@ -171,7 +172,7 @@ class SparkYarnAppManager extends BaseActor{
 
   private def checkApp(): Unit = {
     appMap.values().filter(isNeedRestart).foreach { app =>
-      app.appId = ""
+      app.restart()
       logger.warn(s"restart app ${app.appName}")
       runApp(app.appName)
     }
@@ -234,6 +235,7 @@ object SparkYarnAppManager {
   val NAME = "SparkYarnAppManager"
 
   import SparkYarnAppEnumeration.AppType._
+  import SparkYarnAppEnumeration.AppStateType._
 
   case class App(conf: String)
   case class AppScheduled(conf: String, interval: Int)
@@ -246,16 +248,18 @@ object SparkYarnAppManager {
                        var lastHeartbeat: Long = 0,
                        var lastStartTime: Long = System.currentTimeMillis(),
                        var restartCount: Int = 0,
-                       var state: String = AppState.SUBMITED) {
+                       var state: AppStateType = SUBMIT) {
     def heartbeat(period: Int): AppStatus = {
       lastHeartbeat = System.currentTimeMillis()
-      state = AppState.RUNNING
+      state = RUNNING
       this.period = period
       this
     }
 
     def restart(): AppStatus = {
       restartCount += 1
+      state = RESTART
+      appId = ""
       lastStartTime = System.currentTimeMillis()
       this
     }
@@ -278,10 +282,11 @@ object SparkYarnAppEnumeration {
     val SCHEDULED = Value("scheduled")
   }
 
-  object AppState extends Enumeration {
-    type AppState = Value
+  object AppStateType extends Enumeration {
+    type AppStateType = Value
     val SUBMIT = Value("submit")
     val RUNNING = Value("running")
+    val RESTART = Value("restart")
     val FAILED = Value("failed")
     val KILLED = Value("killed")
   }
