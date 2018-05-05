@@ -83,16 +83,6 @@ class SparkYarnAppManager extends BaseActor{
     prop.getProperty("spark.app.name",prop.getProperty("spark.run.main")+".App")
   }.getOrElse("")
 
-  private def createAppStatus(appName: String,
-                              conf: String,
-                              appType: AppType,
-                              period: Int = 0): AppStatus = {
-    appType match {
-      case MONITOR => AppStatus(appName,conf,period = period)
-      case _ => AppStatus(appName,conf,appType = SCHEDULED,period = period)
-    }
-  }
-
   private def recvApp(conf: String,appType: AppType,period: Int = 0): Unit = {
     val appName = getAppName(conf)
 
@@ -101,7 +91,7 @@ class SparkYarnAppManager extends BaseActor{
       sender() ! failureRes("parameter error.")
     }else{
       if(!appMap.containsKey(appName)) {
-        appMap += appName -> createAppStatus(appName,conf,appType)
+        appMap += appName -> AppStatus(appName, conf, appType = appType, period = period)
         runApp(appName)
         sender() ! successRes(s"success submit $appName.")
       }else{
