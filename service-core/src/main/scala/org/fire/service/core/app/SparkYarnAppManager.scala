@@ -172,9 +172,13 @@ class SparkYarnAppManager extends BaseActor{
 
   private def checkApp(): Unit = {
     appMap.values().filter(isNeedRestart).foreach { app =>
-      app.restart()
-      logger.warn(s"restart app ${app.appName}")
-      runApp(app.appName)
+      if (app.restartCount < 3) {
+        app.restart()
+        logger.warn(s"restart app ${app.appName}")
+        runApp(app.appName)
+      } else {
+        app.state = FAILED
+      }
     }
     appMap.values().filter(isNeedScheduled).foreach { app =>
       logger.info(s"scheduler ${app.appName}")
@@ -219,7 +223,7 @@ class SparkYarnAppManager extends BaseActor{
         source.getLines.map(_.trim).foreach {
           line =>
             val app = line.parseJson.convertTo[AppStatus]
-            appMap += app.appName -> app
+            appMap += app.appName -> app.setLastTime()
         }
         source.close()
         logger.info(s"from $checkpointFile recoveryCheckpoint success.")
@@ -249,6 +253,12 @@ object SparkYarnAppManager {
                        var lastStartTime: Long = System.currentTimeMillis(),
                        var restartCount: Int = 0,
                        var state: AppStateType = SUBMIT) {
+    def setLastTime(): AppStatus = {
+      lastHeartbeat = System.currentTimeMillis()
+      lastStartTime = System.currentTimeMillis()
+      this
+    }
+
     def heartbeat(period: Int): AppStatus = {
       lastHeartbeat = System.currentTimeMillis()
       state = RUNNING
