@@ -13,7 +13,7 @@ object SparkYarnAppJsonFormat extends DefaultJsonProtocol with SprayJsonSupport 
   import SparkYarnAppEnumeration.AppStateType
   import SparkYarnAppEnumeration.AppStateType.AppStateType
   implicit val appTypeFormat = new JsonFormat[AppType] {
-    override def write(obj: AppType): JsValue = JsObject("appType" -> JsString(obj.toString))
+    override def write(obj: AppType): JsValue = JsString(obj.toString)
 
     override def read(json: JsValue): AppType = json match {
       case JsString(obj) => AppType.withName(obj)
@@ -21,7 +21,7 @@ object SparkYarnAppJsonFormat extends DefaultJsonProtocol with SprayJsonSupport 
     }
   }
   implicit val appStateTypeFormat = new JsonFormat[AppStateType] {
-    override def write(obj: AppStateType): JsValue = JsObject("appState" -> JsString(obj.toString))
+    override def write(obj: AppStateType): JsValue = JsString(obj.toString)
 
     override def read(json: JsValue): AppStateType = json match {
       case JsString(obj) => AppStateType.withName(obj)
