@@ -77,13 +77,9 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   private def test(): Route = {
     path("test"){
       post {
-        entity(as[TestRow]) {
-          body => successJson(body.toJson.compactPrint)
-        }
+        entity(as[TestRow]) { body => successJson(body.toJson.compactPrint) }
       } ~ get {
-        parameters('id.as[Int],'str).as(TestRow) {
-          tr => successJson(tr.str)
-        }
+        parameters('id.as[Int],'str).as(TestRow) { tr => successJson(tr.str) }
       }
     }
   }
@@ -111,62 +107,56 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     }
   }
 
-  private def monitor(): Route = {
-    path("monitor"){
-      path("host"){
-        get {
-          parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
-            val hostMonitor = DataManager.loadHistory(system,Some(hr))
-            successJson(hostMonitor.toJson.compactPrint)
-          }
+  private def monitor(): Route = pathPrefix("monitor") {
+    path("host") {
+      get {
+        parameters('id, 'hostName, 'timestamp.as[Long]).as(HostRow) { hr =>
+          val hostMonitor = DataManager.loadHistory(system, Some(hr))
+          successJson(hostMonitor.toJson.compactPrint)
         }
-      } ~ path("memory"){
-        get {
-          parameters('id,'hostName,'timestamp.as[Long]).as(HostRow) {hr =>
-            val memoryMonitor = DataManager.getMem(collectDBSelect,Some(hr))
-            successJson(memoryMonitor.toJson.compactPrint)
-          }
+      }
+    } ~ path("memory") {
+      get {
+        parameters('id, 'hostName, 'timestamp.as[Long]).as(HostRow) { hr =>
+          val memoryMonitor = DataManager.getMem(collectDBSelect, Some(hr))
+          successJson(memoryMonitor.toJson.compactPrint)
         }
       }
     }
   }
 
-  private def sendMessage(): Route = {
-    pathPrefix("send") {
-      (post & path("ding")){
-        entity(as[Ding]) { ding =>
-          monitorRef ! ding
-          successJson("send ding successful")
-        }
-      }~(post & path("mail")){
-        entity(as[Mail]) { mail =>
-          monitorRef ! mail
-          successJson("send email successful")
-        }
-      }~(post & path("wechat")){
-        entity(as[WeChat]){ weChat =>
-          monitorRef ! weChat
-          successJson("send weChat successful")
-        }
+  private def sendMessage(): Route = pathPrefix("send") {
+    (post & path("ding")) {
+      entity(as[Ding]) { ding =>
+        monitorRef ! ding
+        successJson("send ding successful")
+      }
+    } ~ (post & path("mail")) {
+      entity(as[Mail]) { mail =>
+        monitorRef ! mail
+        successJson("send email successful")
+      }
+    } ~ (post & path("wechat")) {
+      entity(as[WeChat]) { weChat =>
+        monitorRef ! weChat
+        successJson("send weChat successful")
       }
     }
   }
 
-  private def appManager(): Route = {
-    pathPrefix("yarn"){
-      (post & path("app")){
-        entity(as[HostJob]) { hostJob =>
-          YarnAppManager.hostAppMap += hostJob.hostId -> hostJob.hostApp
-          YarnAppManager.hostContainerMap += hostJob.hostId -> hostJob.hostContainer
-          hostJob.hostApp.foreach(sparkApp => YarnAppManager.appIdMap += sparkApp.appId -> sparkApp)
-          hostJob.hostContainer.foreach {
-            container =>
-              val containers = YarnAppManager.appContainerMap.getOrDefault(container.appId,List.empty[Container])
-              val updateContainers = container :: containers.filter(_.containerId != container.containerId)
-              YarnAppManager.appContainerMap += container.appId -> updateContainers
-          }
-          successJson("successful")
+  private def appManager(): Route = pathPrefix("yarn") {
+    (post & path("app")) {
+      entity(as[HostJob]) { hostJob =>
+        YarnAppManager.hostAppMap += hostJob.hostId -> hostJob.hostApp
+        YarnAppManager.hostContainerMap += hostJob.hostId -> hostJob.hostContainer
+        hostJob.hostApp.foreach(sparkApp => YarnAppManager.appIdMap += sparkApp.appId -> sparkApp)
+        hostJob.hostContainer.foreach {
+          container =>
+            val containers = YarnAppManager.appContainerMap.getOrDefault(container.appId, List.empty[Container])
+            val updateContainers = container :: containers.filter(_.containerId != container.containerId)
+            YarnAppManager.appContainerMap += container.appId -> updateContainers
         }
+        successJson("successful")
       }
     }
   }
