@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-base=$(cd $(dirname $0);pwd)
-. $base/node.sh
+bin_dir=$(cd $(dirname $0);pwd)
+base=$(cd $bin_dir/..;pwd)
+. $bin_dir/node.sh
 
 
 function help(){

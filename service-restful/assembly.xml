@@ -24,15 +24,15 @@
     </dependencySets>
     <fileSets>
         <fileSet>
+            <directory>${project.basedir}/src/main/resources</directory>
             <outputDirectory>/</outputDirectory>
             <includes>
-                <include>README.md</include>
-                <include>../run.sh</include>
+                <include>application.conf</include>
             </includes>
         </fileSet>
         <fileSet>
             <directory>${project.basedir}/deploy</directory>
-            <outputDirectory>/</outputDirectory>
+            <outputDirectory>bin</outputDirectory>
         </fileSet>
         <!-- 把项目自己编译出来的jar文件，打包进gz文件的lib目录 -->
         <fileSet>

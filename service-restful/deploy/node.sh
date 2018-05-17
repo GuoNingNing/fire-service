@@ -4,7 +4,8 @@
 #set -e
 #如果想开启nounset就打开下一行注释
 #set -u
-base=$(cd $(dirname $0);pwd)
+bin_dir=$(cd $(dirname $0);pwd)
+base=$(cd $bin_dir/..;pwd)
 
 
 function help(){
