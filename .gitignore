@@ -4,3 +4,4 @@ target
 *.iml
 out
 log
+application.conf

@@ -11,8 +11,10 @@
         <encoder>
             <pattern>%date{ISO8601} %-5level [%logger{36}] [%X{akkaSource}] [%X{sourceThread}] : %m%n</pattern>
         </encoder>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>log/info.log.%d{yyyy-MM-dd-HH}</fileNamePattern>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>log/info.log.%d{yyyy-MM-dd}.%i</fileNamePattern>
+            <maxFileSize>1024MB</maxFileSize>
+            <MaxHistory>7</MaxHistory>
         </rollingPolicy>
     </appender>
     <logger name="org.eclipse.jetty.util.log" level="INFO"/>
