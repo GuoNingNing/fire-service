@@ -102,7 +102,7 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
       }
     } ~ path("hosts"){
       get {
-        successJson(DataManager.hostIdMap.map(_._2).toList.toJson.compactPrint)
+        successJson(DataManager.hostNameMap.keys().toList.toJson.compactPrint)
       }
     }
   }

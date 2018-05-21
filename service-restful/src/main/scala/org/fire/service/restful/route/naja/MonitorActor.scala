@@ -167,7 +167,9 @@ object MonitorManager {
       case false =>
         s"""
            |$t
-           |HostId\t\tHostName\t\tLastUpdate
+           |HostId
+           |HostName
+           |LastUpdate
            |${l.map(d => s"${d._1}\t\t${d._2}\t\t${d._3}").mkString("\n")}
          """.stripMargin
     }
