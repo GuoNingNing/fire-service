@@ -128,18 +128,18 @@ object MonitorManager {
   def roleAlertMsg(roleList: List[RoleRow],roleHistory: List[RoleRow]): String = {
     val dateFormat = getDateFormat("yyyy-MM-dd HH:mm:ss")
     val recoveryRole = roleHistory.filter(d => !roleList.contains(d)).map {
-      r => (r.id,DataManager.hostIdMap(r.id).hostName,r.role,dateFormat.format(r.timestamp))
+      r => (DataManager.hostIdMap(r.id).hostName,r.role,dateFormat.format(r.timestamp))
     }
     val deadRole = roleList.map {
-      r => (r.id,DataManager.hostIdMap(r.id).hostName,r.role,dateFormat.format(r.timestamp))
+      r => (DataManager.hostIdMap(r.id).hostName,r.role,dateFormat.format(r.timestamp))
     }
-    val msg = (r: List[(String,String,String,String)],t: String) => r.isEmpty match {
+    val msg = (r: List[(String,String,String)],t: String) => r.isEmpty match {
       case true => ""
       case false =>
         s"""
            |$t
-           |HostId\t\tHostName\t\tRoleName\t\tLastUpdate
-           |${r.map(d => s"${d._1}\t\t${d._2}\t\t${d._3}\t\t${d._4}").mkString("\n")}
+           |HostName \t\t RoleName \t\t LastUpdate
+           |${r.map(d => s"${d._1}\t\t${d._2}\t\t${d._3}").mkString("\n")}
          """.stripMargin
     }
     val deadMsg = msg(deadRole,"dead role list:")
@@ -157,20 +157,18 @@ object MonitorManager {
   def hostAlertMsg(hostList: List[Host],hostHistory: List[Host]): String = {
     val dateFormat = getDateFormat("yyyy-MM-dd HH:mm:ss")
     val recoveryHost = hostHistory.filter(h => !hostList.contains(h)).map {
-      h => (h.hostId,h.hostName,dateFormat.format(h.mem.timestamp))
+      h => (h.hostName,dateFormat.format(h.mem.timestamp))
     }
     val deadHost = hostList.map {
-      h => (h.hostId,h.hostName,dateFormat.format(h.mem.timestamp))
+      h => (h.hostName,dateFormat.format(h.mem.timestamp))
     }
-    val msg = (l: List[(String,String,String)],t: String) => l.isEmpty match {
+    val msg = (l: List[(String,String)],t: String) => l.isEmpty match {
       case true => ""
       case false =>
         s"""
            |$t
-           |HostId
-           |HostName
-           |LastUpdate
-           |${l.map(d => s"${d._1}\t\t${d._2}\t\t${d._3}").mkString("\n")}
+           |HostName \t\t LastUpdate
+           |${l.map(d => s"${d._1}\t\t${d._2}").mkString("\n")}
          """.stripMargin
     }
     val deadMsg = msg(deadHost,"dead host list:")
