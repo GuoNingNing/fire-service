@@ -27,13 +27,13 @@ function curl_cmd(){
 function submit(){
 	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'"]}'
 
-	curl_cmd "$http_server/submit" "POST" "$data"
+	curl_cmd "$http_server/app/submit" "POST" "$data"
 }
 
 function scheduled(){
 	local data='{"command":"run.sh","args":["'$(get_abs_file $1)'","scheduled","'$2'"]}'
 
-	curl_cmd "$http_server/submit" "POST" "$data"
+	curl_cmd "$http_server/app/submit" "POST" "$data"
 }
 
 #function waitSubmit(){}
@@ -44,18 +44,18 @@ function sendHeartbeat(){
 	local period=$2
 	let period=$period*3
 
-	curl_cmd "$http_server/heartbeat/$app_id/$period" "GET"
+	curl_cmd "$http_server/app/heartbeat/$app_id/$period" "GET"
 }
 
 function killApp(){
 	test $# -lt 1 && return
 	local app_id=$1
 
-	curl_cmd "$http_server/kill/$app_id" "GET"
+	curl_cmd "$http_server/app/kill/$app_id" "GET"
 }
 
 function getMonitors(){
-	curl_cmd "$http_server/monitors" "GET"
+	curl_cmd "$http_server/app/monitors" "GET"
 }
 
 function printHelp(){
@@ -76,7 +76,7 @@ function _check_(){
 
 function main(){
 	local args=($@)
-	local http_server="http://127.0.0.1:8920/app"
+	local http_server="http://127.0.0.1:8920"
 	
 	local i=0
 	for ((i=0;i<$#;i++))

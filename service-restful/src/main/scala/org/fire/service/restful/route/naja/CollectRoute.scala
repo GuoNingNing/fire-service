@@ -100,10 +100,9 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
           successJson(host.toJson.compactPrint)
         }
       }
-    } ~ (get & path("hosts")){
-      val hostNameList = DataManager.hostNameMap.keys().toList
-      logger.info(hostNameList.size.toString)
-      successJson(hostNameList.toJson.compactPrint)
+    } ~ (get & path("hosts")) {
+      def hostNameList = DataManager.hostNameMap.keys().toList.toJson.compactPrint
+      successJson(hostNameList)
     }
   }
 
