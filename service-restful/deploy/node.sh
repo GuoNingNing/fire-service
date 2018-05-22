@@ -72,7 +72,7 @@ function start(){
 	
 	test ! -d $base/log && mkdir -p $base/log
 	if [ "$pid" == "" ];then
-		$java -cp $classpath org.fire.service.restful.FireService $node >$log_dir/$node.log.$(date +%Y-%m-%d) 2>&1 &
+		$java -cp $classpath -Dfire_home=$base org.fire.service.restfull.FireService $node >/dev/null 2>&1 &
 		echo $! > $run_dir/${node}.pid
 		echo "$node start success."
 	else

@@ -10,6 +10,7 @@
             <useProjectAttachments>true</useProjectAttachments>
             <includes>
                 <include>org.fire.service:service-core</include>
+                <include>com.typesafe.akka:akka-slf4j_2.11</include>
             </includes>
         </dependencySet>
         <dependencySet>

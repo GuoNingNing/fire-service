@@ -12,42 +12,6 @@
 
     <artifactId>service-restful</artifactId>
 
-    <profiles>
-        <profile>
-            <!--
-            mvn clean package
-            直接打包，只会将 assembly.xml 文件中
-            <includes>
-                <include>org.fire.spark.streaming:fire-spark</include>
-            </includes>
-            包含的Jar包打包进去
-             -->
-            <id>default</id>
-            <properties>
-                <scope>compile</scope>
-            </properties>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-        </profile>
-        <profile>
-            <!--
-             mvn clean package -Pwithjar -Dmaven.test.skip=true
-            包含依赖jar打包，会将assembly.xml 文件中
-            <includes>
-                <include>org.fire.spark.streaming:fire-spark</include>
-            </includes>
-            包含的Jar和pom中设置 <scope>${project.scope}</scope> 的jar一起打包进去，
-            这样蹩脚的设计，主要是因为我不知道怎么能优雅的把 运行、编译都依赖的JarA 抽离出来
-             -->
-            <id>withjar</id>
-            <properties>
-                <scope>provided</scope>
-            </properties>
-        </profile>
-    </profiles>
-
-
     <dependencies>
         <dependency>
             <groupId>${project.parent.groupId}</groupId>
@@ -58,33 +22,78 @@
         <dependency>
             <groupId>com.typesafe.slick</groupId>
             <artifactId>slick_${scala.binary.version}</artifactId>
-            <version>2.1.0</version>
             <scope>${scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>5.1.39</version>
         </dependency>
 
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>2.8.2</version>
             <scope>${scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>org.scalaj</groupId>
             <artifactId>scalaj-http_${scala.binary.version}</artifactId>
-            <version>2.3.0</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-email</artifactId>
-            <version>1.5</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.spray</groupId>
+            <artifactId>spray-can_${scala.binary.version}</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.spray</groupId>
+            <artifactId>spray-routing_${scala.binary.version}</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.spray</groupId>
+            <artifactId>spray-json_${scala.binary.version}</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.spray</groupId>
+            <artifactId>spray-testkit_${scala.binary.version}</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.elasticsearch.client</groupId>
+            <artifactId>transport</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-streams</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-server</artifactId>
+            <scope>${scope}</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-slf4j_2.11</artifactId>
         </dependency>
 
     </dependencies>
