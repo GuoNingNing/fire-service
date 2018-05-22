@@ -1,4 +1,4 @@
-package org.fire.service.restfull.route.naja
+package org.fire.service.restful.route.naja
 
 import org.fire.service.core.BaseConfig
 

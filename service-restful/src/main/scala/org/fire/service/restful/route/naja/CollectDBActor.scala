@@ -1,9 +1,9 @@
-package org.fire.service.restfull.route.naja
+package org.fire.service.restful.route.naja
 
 import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config
 import scala.slick.driver.MySQLDriver.simple._
-import org.fire.service.restfull.route.naja.CollectRouteConstantConfig._
+import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
 
 /**
   * Created by cloud on 18/3/9.
