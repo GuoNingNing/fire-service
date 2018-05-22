@@ -1,4 +1,4 @@
-package org.fire.service.restfull
+package org.fire.service.restful
 
 
 import java.util.concurrent.TimeUnit

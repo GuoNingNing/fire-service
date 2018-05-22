@@ -1,4 +1,4 @@
-package org.fire.service.restfull.route.app
+package org.fire.service.restful.route.app
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
