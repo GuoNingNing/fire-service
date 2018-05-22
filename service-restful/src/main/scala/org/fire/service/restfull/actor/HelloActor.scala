@@ -1,4 +1,4 @@
-package org.fire.service.restful.actor
+package org.fire.service.restfull.actor
 
 import org.fire.service.core.BaseSupervisor
 

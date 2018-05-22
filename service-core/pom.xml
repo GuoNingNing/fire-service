@@ -16,50 +16,35 @@
         <dependency>
             <groupId>io.spray</groupId>
             <artifactId>spray-can_${scala.binary.version}</artifactId>
-            <version>${spray.version}</version>
         </dependency>
         <dependency>
             <groupId>io.spray</groupId>
             <artifactId>spray-routing_${scala.binary.version}</artifactId>
-            <version>${spray.version}</version>
         </dependency>
         <dependency>
             <groupId>io.spray</groupId>
             <artifactId>spray-json_${scala.binary.version}</artifactId>
-            <version>${spray.version}</version>
         </dependency>
         <dependency>
             <groupId>io.spray</groupId>
             <artifactId>spray-testkit_${scala.binary.version}</artifactId>
-            <version>${spray.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch</artifactId>
-            <version>${es.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.elasticsearch.client</groupId>
-            <artifactId>transport</artifactId>
-            <version>${es.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.elasticsearch.plugin</groupId>
-            <artifactId>transport-netty4-client</artifactId>
-            <version>${es.version}</version>
+            <groupId>org.scalaj</groupId>
+            <artifactId>scalaj-http_${scala.binary.version}</artifactId>
+            <scope>${scope}</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-client</artifactId>
-            <version>2.9.0</version>
+            <version>${hadoop.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-common</artifactId>
-            <version>2.9.0</version>
+            <version>${hadoop.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -70,24 +55,7 @@
                     <artifactId>slf4j-log4j12</artifactId>
                 </exclusion>
             </exclusions>
-            <version>2.9.0</version>
-        </dependency>
-
-        <!--<dependency>-->
-            <!--<groupId>org.elasticsearch.client</groupId>-->
-            <!--<artifactId>elasticsearch-rest-high-level-client</artifactId>-->
-            <!--<version>6.2.3</version>-->
-        <!--</dependency>-->
-
-
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_${scala.binary.version}</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-remote_${scala.binary.version}</artifactId>
+            <version>${hadoop.version}</version>
         </dependency>
 
     </dependencies>

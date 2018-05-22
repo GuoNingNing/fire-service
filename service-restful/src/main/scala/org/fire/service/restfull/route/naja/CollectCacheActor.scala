@@ -1,4 +1,4 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restfull.route.naja
 
 import akka.actor.{Actor, ActorLogging}
 import com.typesafe.config.Config

@@ -1,4 +1,4 @@
-package org.fire.service.restful
+package org.fire.service.restfull
 
 import akka.actor.ActorSystem
 import com.typesafe.config.Config

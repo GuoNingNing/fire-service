@@ -1,4 +1,4 @@
-package org.fire.service.restful.route
+package org.fire.service.restfull.route
 
 import akka.actor.ActorSystem
 import org.fire.service.core.{BaseRoute, User}

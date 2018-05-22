@@ -1,11 +1,11 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restfull.route.naja
 
 import java.util.UUID
 
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
 import org.fire.service.core.{BaseRoute, ResultMsg}
 import org.fire.service.core.ResultJsonSupport._
-import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
+import org.fire.service.restfull.route.naja.CollectRouteConstantConfig._
 import spray.http.{MediaTypes, StatusCode, StatusCodes}
 import spray.routing.Route
 
