@@ -28,14 +28,14 @@ function submit(){
 	test "x$1" == "x" && return
 	local data='{"conf":"'$(get_abs_file $1)'"}'
 
-	curl_cmd "$http_server/submit" "POST" "$data"
+	curl_cmd "$http_server/app/submit" "POST" "$data"
 }
 
 function scheduled(){
 	test $# -ne 2 && return
 	local data='{"conf":"'$(get_abs_file $1)'","interval":"'$2'"}'
 
-	curl_cmd "$http_server/scheduled" "POST" "$data"
+	curl_cmd "$http_server/app/scheduled" "POST" "$data"
 }
 
 #function waitSubmit(){}
@@ -47,19 +47,19 @@ function sendHeartbeat(){
 	local period=$3
 	let period=$period*3
 
-	curl_cmd "$http_server/heartbeat/$app_name/$app_id/$period" "GET"
+	curl_cmd "$http_server/app/heartbeat/$app_name/$app_id/$period" "GET"
 }
 
 function killApp(){
 	test $# -lt 1 && return
 	local app_id=$1
 
-	curl_cmd "$http_server/kill/$app_id" "GET"
+	curl_cmd "$http_server/app/kill/$app_id" "GET"
 }
 
 function getMonitors(){
 	local app_name=${1:-"0x00001"}
-	curl_cmd "$http_server/monitors/$app_name" "GET"
+	curl_cmd "$http_server/app/monitors/$app_name" "GET"
 }
 
 function printHelp(){
@@ -80,7 +80,7 @@ function _check_(){
 
 function main(){
 	local args=($@)
-	local http_server="http://127.0.0.1:8920/app"
+	local http_server="http://127.0.0.1:8920"
 	
 	local i=0
 	for ((i=0;i<$#;i++))
