@@ -258,6 +258,8 @@
                 <excludes>
                     <exclude>production/*</exclude>
                     <exclude>development/*</exclude>
+                    <exclude>application.conf</exclude>
+                    <exclude>logback.xml</exclude>
                 </excludes>
             </resource>
             <resource>

@@ -29,6 +29,7 @@
             <outputDirectory>/</outputDirectory>
             <includes>
                 <include>application.conf</include>
+                <include>logback.xml</include>
             </includes>
         </fileSet>
         <fileSet>
