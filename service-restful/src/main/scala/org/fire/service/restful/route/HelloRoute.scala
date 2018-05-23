@@ -1,9 +1,11 @@
 package org.fire.service.restful.route
 
+import java.io.{ByteArrayInputStream, InputStream, OutputStream}
+
 import akka.actor.ActorSystem
 import org.fire.service.core.{BaseRoute, User}
 import org.fire.service.core.ResultJsonSupport._
-import spray.http.{MediaTypes, MultipartFormData, StatusCodes}
+import spray.http._
 import spray.routing.Route
 
 
@@ -21,8 +23,13 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
       complete {
         <h1>This is an GET method</h1>
       }
-    } ~
-      (post & path("world")) {
+    } ~ (get & path("test")) {
+      // 这样才能避免静态路由
+      def now = System.currentTimeMillis()
+      respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+        ctx.complete(StatusCodes.OK, success(now))
+      }
+    } ~ (post & path("world")) {
         entity(as[String]) { body =>
           respondWithMediaType(MediaTypes.`application/json`) { ctx =>
             ctx.complete(StatusCodes.OK, success(s"you post $body"))
@@ -30,12 +37,21 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
         }
       } ~ (post & path("upload")) {
       //文件上传示例 curl -F f1=@userinfo.txt http://localhost:9200/hello/upload
-
+      logger.info("upload req 1")
       entity(as[MultipartFormData]) { formData =>
         respondWithMediaType(MediaTypes.`application/json`) { ctx =>
-          val part = formData.fields.head
-          logger.info(s"upload file ${part.name.getOrElse("none")}")
-          ctx.complete(StatusCodes.OK, success("you upload file info %s ", new String(part.entity.data.toByteArray)))
+          val res = formData.fields.map {
+            case BodyPart(entity, headers) =>
+              val content = new ByteArrayInputStream(entity.data.toByteArray)
+              val fileName = headers.find(s => s.is("content-disposition"))
+                .getOrElse(HttpHeaders.`Content-Disposition`("",Map("filename"->"tmp_test.txt")))
+                .value.split("filename=").last
+              val writeRes = saveAttachment(s"/Users/cloud/myfile/file/$fileName",content)
+              (writeRes,fileName)
+            case _ => (false,"")
+          }
+          logger.info(s"upload file $res")
+          ctx.complete(StatusCodes.OK, success(s"you upload file info $res"))
         }
       }
     } ~ (get & path("download")) {
@@ -58,6 +74,34 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
           ctx.complete(StatusCodes.OK, success(s"post user $user"))
         }
       }
+    }
+  }
+
+  private def saveAttachment(fileName: String, content: Array[Byte]): Boolean = {
+    saveAttachment[Array[Byte]](fileName, content, {(is, os) => os.write(is)})
+    true
+  }
+
+  private def saveAttachment(fileName: String, content: InputStream): Boolean = {
+    saveAttachment[InputStream](fileName, content,
+      { (is, os) =>
+        val buffer = new Array[Byte](16384)
+        Iterator
+          .continually (is.read(buffer))
+          .takeWhile (-1 != _)
+          .foreach (read=>os.write(buffer,0,read))
+      }
+    )
+  }
+
+  private def saveAttachment[T](fileName: String, content: T, writeFile: (T, OutputStream) => Unit): Boolean = {
+    try {
+      val fos = new java.io.FileOutputStream(fileName)
+      writeFile(content, fos)
+      fos.close()
+      true
+    } catch {
+      case _: Exception => false
     }
   }
 }

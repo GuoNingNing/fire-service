@@ -1,17 +1,19 @@
 package org.fire.service.restful.route.naja
 
 import java.util.UUID
+import java.io.{ByteArrayInputStream, InputStream, OutputStream}
 
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
 import org.fire.service.core.{BaseRoute, ResultMsg}
 import org.fire.service.core.ResultJsonSupport._
 import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
-import spray.http.{MediaTypes, StatusCode, StatusCodes}
+import spray.http._
 import spray.routing.Route
 
 import scala.slick.driver.MySQLDriver.simple._
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
+import scala.util.{Try, Failure, Success}
 
 
 /**
@@ -57,23 +59,37 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   }
 
   override protected def routes() : Route = {
-    sourceGet()
+    fileManager()
       .~(hostManager())
       .~(monitor())
       .~(sendMessage())
       .~(test())
-      .~(t1())
   }
 
-  private def sourceGet(): Route = {
+  private def fileManager(): Route = {
     (get & path("source" / RestPath)) { path =>
       getFromFile(fileBasePath + "/" + path.toString())
+    } ~ (post & path("upload")) {
+      entity(as[MultipartFormData]) { formData =>
+        Try {
+          formData.fields.map {
+            case BodyPart(entity, headers) =>
+              val content = new ByteArrayInputStream(entity.data.toByteArray)
+              val fileName = headers.find(_.is("content-disposition"))
+                .getOrElse(HttpHeaders.`Content-Disposition`("", Map("filename" -> "tmp_file")))
+                .value.split("filename=").last
+              val saveBoolean = saveAttachment(s"$fileBasePath/$fileName", content)
+              (saveBoolean, fileName)
+            case _ => (false, "")
+          }.head
+        } match {
+          case Success(res) => successJson(s"$res")
+          case Failure(e) => failureJson(e.getMessage)
+        }
+      }
     }
   }
 
-  private def t1(): Route = pathPrefix("t1"){
-    test()
-  }
   private def test(): Route = {
     path("test"){
       post {
@@ -102,7 +118,9 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
       }
     } ~ (get & path("hosts")) {
       def hostNameList = DataManager.hostNameMap.keys().toList.toJson.compactPrint
-      successJson(hostNameList)
+      respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+        ctx.complete(StatusCodes.OK, success(hostNameList))
+      }
     }
   }
 
@@ -172,6 +190,36 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
       List(DataManager.hostNameMap(hostRow.hostName))
     } else {
       List.empty[Host]
+    }
+  }
+
+  private def saveAttachment(fileName: String, content: Array[Byte]): Boolean = {
+    saveAttachment[Array[Byte]](fileName, content, {(is, os) => os.write(is)})
+    true
+  }
+
+  private def saveAttachment(fileName: String, content: InputStream): Boolean = {
+    saveAttachment[InputStream](fileName, content,
+      { (is, os) =>
+        val buffer = new Array[Byte](16384)
+        Iterator
+          .continually (is.read(buffer))
+          .takeWhile (-1 != _)
+          .foreach (read=>os.write(buffer,0,read))
+      }
+    )
+  }
+
+  private def saveAttachment[T](fileName: String, content: T, writeFile: (T, OutputStream) => Unit): Boolean = {
+    try {
+      val fos = new java.io.FileOutputStream(fileName)
+      writeFile(content, fos)
+      fos.close()
+      true
+    } catch {
+      case e: Exception =>
+        logger.error(s"$fileName write failed.",e)
+        false
     }
   }
 
