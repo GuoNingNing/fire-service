@@ -7,12 +7,12 @@
         </encoder>
     </appender>
     <appender name="R" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <File>log/restful.log</File>
+        <File>${fire_home}/log/restful.log</File>
         <encoder>
             <pattern>%date{ISO8601} %-5level [%logger{36}] [%X{akkaSource}] [%X{sourceThread}] : %m%n</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>log/restful.log.%d{yyyy-MM-dd}.%i</fileNamePattern>
+            <fileNamePattern>${fire_home}log/restful.log.%d{yyyy-MM-dd}.%i</fileNamePattern>
             <maxFileSize>1024MB</maxFileSize>
             <MaxHistory>7</MaxHistory>
         </rollingPolicy>
@@ -23,7 +23,7 @@
     <logger name="com.avaje.ebeaninternal.server.core.XmlConfigLoader" level="OFF" />
     <logger name="com.avaje.ebeaninternal.server.lib.BackgroundThread" level="OFF" />
 
-    <root level="DEBUG">
+    <root level="INFO">
         <appender-ref ref="stdout"/>
         <appender-ref ref="R"/>
     </root>

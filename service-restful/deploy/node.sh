@@ -51,12 +51,11 @@ function get_pid(){
 		pid=$(cat $pid_dir/${node}.pid)
 		test "$pid" == "" && return
 		if ! kill -0 $pid >/dev/null 2>&1;then
+			pid=""
 			local rpid=$(ps -ef | grep $main_class | grep $base | grep -v grep | awk '{print $2}')
 			if [ "$rpid" != "" ];then
-				test "$pid" != "$rpid" && { 
-					pid=$rpid;
-					echo $pid > $pid_dir/${node}.pid
-				}
+				pid=$rpid
+				echo $pid > $pid_dir/${node}.pid
 			fi
 		fi
 	fi
@@ -72,7 +71,7 @@ function start(){
 	
 	test ! -d $base/log && mkdir -p $base/log
 	if [ "$pid" == "" ];then
-		$java -cp $classpath -Dfire_home=$base org.fire.service.restfull.FireService $node >/dev/null 2>&1 &
+		$java -cp $classpath -Dfire_home=$base $main_class $node >/dev/null 2>&1 &
 		echo $! > $run_dir/${node}.pid
 		echo "$node start success."
 	else
