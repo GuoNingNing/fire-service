@@ -102,6 +102,9 @@ function printHelp(){
 	echo -e "\tkill appid"
 	echo -e "\tmonitors app_name"
 	echo -e "\theartbeat app_name appid period"
+	echo -e "Ex:\n\tbash $0 -h 127.0.0.1:9200 upload ./test/cloud.txt"
+	echo -e "\tbash $0 -h 127.0.0.1:9200 submit t5-0.0.1.tar.gz t5-0.0.1/trs.properties true"
+	echo -e "\tbash $0 -h 127.0.0.1:9200 scheduled t5-0.0.1.tar.gz t5-0.0.1/trs.properties true 300"
 }
 
 function _check_(){
