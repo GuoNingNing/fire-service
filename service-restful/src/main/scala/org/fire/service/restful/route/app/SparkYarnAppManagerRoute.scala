@@ -1,5 +1,7 @@
 package org.fire.service.restful.route.app
 
+import java.io.File
+
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import org.fire.service.core.app.SparkYarnAppManager
@@ -7,6 +9,7 @@ import org.fire.service.core.app.SparkYarnAppManager._
 import org.fire.service.core.app.SparkYarnAppJsonFormat._
 import org.fire.service.core.{BaseRoute, Supervisor}
 import org.fire.service.core.ResultJsonSupport.{failure, success}
+import org.fire.service.restful.route.naja.CollectRouteConstantConfig
 import spray.http.StatusCodes
 import spray.routing.Route
 
@@ -22,10 +25,12 @@ import scala.util.{Failure, Success, Try}
 class SparkYarnAppManagerRoute(override val system: ActorSystem) extends BaseRoute{
   override val pathPrefix: String = "app"
   private lazy val appManager = system.actorSelection(s"/user/${Supervisor.NAME}/${SparkYarnAppManager.NAME}")
+  private lazy val fileBasePath = config.getString(CollectRouteConstantConfig.FILE_SER_PATH)
 
   override def routes(): Route = {
     monitor()
       .~(recvHeartbeat())
+      .~(onceApp())
       .~(submitApp())
       .~(scheduledApp())
       .~(appKill())
@@ -52,10 +57,18 @@ class SparkYarnAppManagerRoute(override val system: ActorSystem) extends BaseRou
     }
   }
 
+  private def onceApp(): Route = {
+    (post & path("execute")) {
+      entity(as[AppOnce]) { appOnce =>
+        appResponse(appManager ? AppOnce(createApp(appOnce.app)))
+      }
+    }
+  }
+
   private def submitApp(): Route = {
     (post & path("submit")) {
       entity(as[App]) { app =>
-        appResponse(appManager ? app)
+        appResponse(appManager ? createApp(app))
       }
     }
   }
@@ -63,7 +76,7 @@ class SparkYarnAppManagerRoute(override val system: ActorSystem) extends BaseRou
   private def scheduledApp(): Route = {
     (post & path("scheduled")){
       entity(as[AppScheduled]) { appScheduled =>
-        appResponse(appManager ? appScheduled)
+        appResponse(appManager ? AppScheduled(createApp(appScheduled.app), appScheduled.interval))
       }
     }
   }
@@ -72,6 +85,11 @@ class SparkYarnAppManagerRoute(override val system: ActorSystem) extends BaseRou
     (get & path("kill" / Segment)) { appName =>
       appResponse(appManager ? AppKill(appName))
     }
+  }
+
+  private def createApp(app: App): App = {
+    val packageFile = new File(app.packageName)
+    App(s"$fileBasePath/${packageFile.getName}",app.conf,app.decompression)
   }
 
 }

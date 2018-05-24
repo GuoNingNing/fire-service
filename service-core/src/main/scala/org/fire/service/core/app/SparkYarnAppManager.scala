@@ -11,6 +11,7 @@ import org.apache.hadoop.yarn.client.api.YarnClient
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.conf.Configuration
 import org.fire.service.core.BaseActor
+import org.fire.service.core.util.Decompression
 
 import scala.util.{Failure, Success, Try}
 import scala.sys.process.Process
@@ -36,7 +37,8 @@ class SparkYarnAppManager extends BaseActor{
   private lazy val checkAppInterval = conf.getInt("app.manager.check.app.interval")
   private lazy val checkpointFile = conf.getString("app.manager.checkpoint.file")
   private lazy val yarnConfigFile = conf.getString("app.manager.yarn.conf.file")
-  private lazy val cmdPath = conf.getString("app.manager.path")
+  private lazy val appStoragePath = conf.getString("app.manager.app.storage.path")
+  private lazy val cmdPath = conf.getString("app.manager.cmd.path")
   private var hadoopConf: Configuration = _
   private var yarnConf: YarnConfiguration = _
   private var yarnClient: YarnClient = _
@@ -49,6 +51,8 @@ class SparkYarnAppManager extends BaseActor{
   override def receive: Receive = {
 
     case app: App => submitApp(app)
+
+    case AppOnce(app) => onceApp(app)
 
     case appScheduled: AppScheduled => scheduledApp(appScheduled)
 
@@ -68,6 +72,28 @@ class SparkYarnAppManager extends BaseActor{
     }
   }
 
+  private def decompression(app: App): Option[String] = {
+    val packageFile = new File(app.packageName)
+    app.decompression match {
+      case true =>
+        Try {
+          Decompression.unTarGZIP(packageFile, new File(appStoragePath)) match {
+            case true => getConf(app)
+            case false => None
+          }
+        }.getOrElse(None)
+      case false => getConf(app)
+    }
+  }
+
+  private def getConf(app: App): Option[String] = {
+    val appFile = new File(s"$appStoragePath/${app.conf}")
+    appFile.exists() match {
+      case true => Some(appFile.getAbsolutePath)
+      case false => None
+    }
+  }
+
   private def startYarnClient(): Unit = {
     hadoopConf = new Configuration()
     hadoopConf.addResource(yarnConfigFile)
@@ -83,15 +109,19 @@ class SparkYarnAppManager extends BaseActor{
     prop.getProperty("spark.app.name",prop.getProperty("spark.run.main")+".App")
   }.getOrElse("")
 
-  private def recvApp(conf: String,appType: AppType,period: Int = 0): Unit = {
-    val appName = getAppName(conf)
+  private def recvApp(app: App, appType: AppType, period: Int = 0): Unit = {
+    val conf = decompression(app)
+    val appName = conf match {
+      case Some(c) => getAppName(c)
+      case None => ""
+    }
 
     if(appName == ""){
       logger.warn(s"get appName failed. config $conf")
       sender() ! failureRes("parameter error.")
     }else{
       if(!appMap.containsKey(appName)) {
-        appMap += appName -> AppStatus(appName, conf, appType = appType, period = period)
+        appMap += appName -> AppStatus(appName, conf.get, appType = appType, period = period)
         runApp(appName)
         sender() ! successRes(s"success submit $appName.")
       }else{
@@ -100,21 +130,22 @@ class SparkYarnAppManager extends BaseActor{
     }
   }
 
+  private def onceApp(app: App): Unit = {
+    runApp(app)
+    sender() ! successRes("once exec app submit success.")
+  }
+
   private def submitApp(app: App): Unit = {
-    recvApp(app.conf,MONITOR)
+    recvApp(app, MONITOR)
   }
 
   private def scheduledApp(appScheduled: AppScheduled): Unit = {
-    recvApp(appScheduled.conf,SCHEDULED,appScheduled.interval)
+    recvApp(appScheduled.app, SCHEDULED, appScheduled.interval)
   }
 
   private def runApp(appName: String): Unit = {
     val app = appMap(appName)
-    val process = Process(s"$cmdPath/run.sh",List(app.conf))
-    val future = Future {
-      process.run().exitValue()
-    }
-
+    val future = execApp(app.conf)
     future.onComplete {
       case Success(c) =>
         app.lastStartTime = System.currentTimeMillis()
@@ -123,6 +154,26 @@ class SparkYarnAppManager extends BaseActor{
         app.lastStartTime = System.currentTimeMillis()
         logger.error(s"runApp $appName failed. ",e)
     }
+  }
+
+  private def runApp(app: App): Unit = {
+    val conf = decompression(app)
+    conf match {
+      case Some(c) =>
+        val future = execApp(c)
+        future.onSuccess {
+          case s => logger.info(s"run.sh $c result $s")
+        }
+        future.onFailure {
+          case t => logger.warn(s"run.sh $c failed. ",t)
+        }
+      case None => //No-op
+    }
+  }
+
+  private def execApp(conf: String): Future[Int] = {
+    val process = Process(s"$cmdPath/run.sh",List(conf))
+    Future { process.run().exitValue() }
   }
 
   private def recvHeartbeat(appHeartbeat: AppHeartbeat): Unit = {
@@ -231,8 +282,11 @@ object SparkYarnAppManager {
   import SparkYarnAppEnumeration.AppType._
   import SparkYarnAppEnumeration.AppStateType._
 
-  case class App(conf: String)
-  case class AppScheduled(conf: String, interval: Int)
+  case class App(packageName: String,
+                 conf: String,
+                 decompression: Boolean)
+  case class AppOnce(app: App)
+  case class AppScheduled(app: App, interval: Int)
   case class AppHeartbeat(appName: String,appId: String,period: Int)
   case class AppStatus(appName: String,
                        conf: String,

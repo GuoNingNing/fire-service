@@ -28,7 +28,8 @@ object SparkYarnAppJsonFormat extends DefaultJsonProtocol with SprayJsonSupport 
       case _ => throw DeserializationException("appState excepted.")
     }
   }
-  implicit val appFormat = jsonFormat1(App)
+  implicit val appFormat = jsonFormat3(App)
+  implicit val appOnceFormat = jsonFormat1(AppOnce)
   implicit val appScheduledFormat = jsonFormat2(AppScheduled)
   implicit val appStatusFormat = jsonFormat9(AppStatus)
 }

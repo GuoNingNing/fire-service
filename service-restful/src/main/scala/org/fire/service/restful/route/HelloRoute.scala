@@ -35,7 +35,7 @@ class HelloRoute(override val system: ActorSystem) extends BaseRoute {
             ctx.complete(StatusCodes.OK, success(s"you post $body"))
           }
         }
-      } ~ (post & path("upload")) {
+      } ~ (post & path("upload" / RestPath)) { path =>
       //文件上传示例 curl -F f1=@userinfo.txt http://localhost:9200/hello/upload
       logger.info("upload req 1")
       entity(as[MultipartFormData]) { formData =>
