@@ -122,8 +122,9 @@ class SparkYarnAppManager extends BaseActor{
       sender() ! failureRes("parameter error.")
     }else{
       if(!appMap.containsKey(appName)) {
-        appMap += appName -> AppStatus(appName, conf.get, appType = appType, period = period)
-        runApp(appName)
+        val appStatus = AppStatus(appName, conf.get, appType = appType, period = period)
+        appMap += appName -> appStatus
+        runApp(appStatus)
         sender() ! successRes(s"success submit $appName.")
       }else{
         sender() ! failureRes(s"app $appName already exists.")
@@ -144,16 +145,15 @@ class SparkYarnAppManager extends BaseActor{
     recvApp(appScheduled.app, SCHEDULED, appScheduled.interval)
   }
 
-  private def runApp(appName: String): Unit = {
-    val app = appMap(appName)
-    val future = execApp(app.conf)
+  private def runApp(appStatus: AppStatus): Unit = {
+    val future = execApp(appStatus.conf)
     future.onComplete {
       case Success(c) =>
-        app.lastStartTime = System.currentTimeMillis()
-        logger.info(s"runApp $appName success. exitCode $c")
+        appStatus.submit()
+        logger.info(s"runApp ${appStatus.appName} success. exitCode $c")
       case Failure(e) =>
-        app.lastStartTime = System.currentTimeMillis()
-        logger.error(s"runApp $appName failed. ",e)
+        appStatus.submit()
+        logger.error(s"runApp ${appStatus.appName} failed. ",e)
     }
   }
 
@@ -217,14 +217,15 @@ class SparkYarnAppManager extends BaseActor{
       if (app.restartCount < 3) {
         app.restart()
         logger.warn(s"restart app ${app.appName}")
-        runApp(app.appName)
+        runApp(app)
       } else {
         app.state = FAILED
       }
     }
     appMap.values().filter(isNeedScheduled).foreach { app =>
       logger.info(s"scheduler ${app.appName}")
-      runApp(app.appName)
+      app.lastStartTime = System.currentTimeMillis()
+      runApp(app)
     }
     flushCheckpoint()
   }
@@ -237,11 +238,13 @@ class SparkYarnAppManager extends BaseActor{
   }
 
   private def cancelMonitor(appKill: AppKill): Unit = {
-    if(appMap.contains(appKill.appName)){
-      appMap -= appKill.appName
-      sender() ! successRes(s"${appKill.appName} cancel success.")
+    appMap.containsKey(appKill.appName) match {
+      case true =>
+        appMap -= appKill.appName
+        sender() ! successRes(s"${appKill.appName} cancel success.")
+      case false =>
+        sender() ! failureRes(s"${appKill.appName} not found.")
     }
-    sender() ! failureRes(s"${appKill.appName} not found.")
   }
 
   private def flushCheckpoint(): Unit = {
@@ -291,7 +294,7 @@ object SparkYarnAppManager {
   case class AppHeartbeat(appName: String,appId: String,period: Int)
   case class AppStatus(appName: String,
                        conf: String,
-                       var appType: AppType = MONITOR,
+                       appType: AppType = MONITOR,
                        var appId: String = "",
                        var period: Int = 0,
                        var lastHeartbeat: Long = 0,
@@ -317,6 +320,15 @@ object SparkYarnAppManager {
       appId = ""
       lastStartTime = System.currentTimeMillis()
       this
+    }
+
+    def submit(): AppStatus = appType match {
+      case MONITOR =>
+        state = SUBMIT
+        lastStartTime = System.currentTimeMillis()
+        this
+
+      case _ => this
     }
   }
   case class AppManagerResponse(code: Int,msg: String)
