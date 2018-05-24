@@ -87,7 +87,8 @@ class SparkYarnAppManager extends BaseActor{
   }
 
   private def getConf(app: App): Option[String] = {
-    val appFile = new File(s"$appStoragePath/${app.conf}")
+    val confPath = if(app.conf.startsWith("/")) app.conf else s"$appStoragePath/${app.conf}"
+    val appFile = new File(confPath)
     appFile.exists() match {
       case true => Some(appFile.getAbsolutePath)
       case false => None
