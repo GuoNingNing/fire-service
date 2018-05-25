@@ -6,14 +6,16 @@ import java.io.{ByteArrayInputStream, InputStream, OutputStream}
 import akka.actor.{ActorRef, ActorSelection, ActorSystem, Props}
 import org.fire.service.core.{BaseRoute, ResultMsg}
 import org.fire.service.core.ResultJsonSupport._
+import org.fire.service.restful.actor.naja._
 import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
+import org.fire.service.restful.util.naja.{DataManager, YarnAppManager}
 import spray.http._
 import spray.routing.Route
 
 import scala.slick.driver.MySQLDriver.simple._
 import scala.collection.JavaConversions._
 import scala.concurrent.duration._
-import scala.util.{Try, Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 
 /**
@@ -39,15 +41,7 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
   override protected def preStart(): Unit = {
     import system.dispatcher
 
-    val mysqlConnect = Database.forConfig("mysql",mysqlConfig)
-    val jedisConnect = JedisConnect(redisConfig.getConfig("connect"))
-
-    collectDBRef = system.actorOf(Props(CollectDBActor(mysqlConnect,config)),CollectDBActor.NAME)
-    collectCacheRef = system.actorOf(Props(CollectCacheActor(jedisConnect,config)),CollectCacheActor.NAME)
-    collectLoadRef = system.actorOf(Props(LoadActor(config)),LoadActor.NAME)
-    monitorRef = system.actorOf(Props(MonitorActor(config)),MonitorActor.NAME)
-    collectDBSelect = system.actorSelection(s"/user/${CollectDBActor.NAME}")
-    collectCacheSelect = system.actorSelection(s"/user/${CollectCacheActor.NAME}")
+    actorInit()
 
     val restMode = config.getBoolean(DATA_MANAGER_REST,DATA_MANAGER_REST_DEF)
     restMode match {
@@ -64,6 +58,19 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
       .~(monitor())
       .~(sendMessage())
       .~(test())
+  }
+
+  private def actorInit(): Unit = {
+    val mysqlConnect = Database.forConfig("mysql",mysqlConfig)
+    val jedisConnect = JedisConnect(redisConfig.getConfig("connect"))
+
+    collectDBRef = system.actorOf(CollectDBActor.props(mysqlConnect, config),CollectDBActor.NAME)
+    collectCacheRef = system.actorOf(CollectCacheActor.props(jedisConnect,config),CollectCacheActor.NAME)
+    collectLoadRef = system.actorOf(LoadActor.props(config),LoadActor.NAME)
+    monitorRef = system.actorOf(MonitorActor.props(config),MonitorActor.NAME)
+
+    collectDBSelect = system.actorSelection(s"/user/${CollectDBActor.NAME}")
+    collectCacheSelect = system.actorSelection(s"/user/${CollectCacheActor.NAME}")
   }
 
   private def fileManager(): Route = {

@@ -1,10 +1,12 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restful.actor.naja
 
 import java.text.SimpleDateFormat
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.Config
-import CollectRouteConstantConfig._
+import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
+import org.fire.service.restful.route.naja._
+import org.fire.service.restful.util.naja.{DataManager, SendManager}
 
 import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
@@ -52,6 +54,8 @@ object MonitorActor {
   val NAME = "monitor-fire-service"
 
   def apply(config: Config): MonitorActor = new MonitorActor(config)
+
+  def props(config: Config): Props = Props(apply(config))
 }
 
 

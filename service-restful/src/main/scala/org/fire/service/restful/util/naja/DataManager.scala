@@ -1,17 +1,18 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restful.util.naja
 
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import akka.actor.{ActorSelection, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
-import DataFormat._
+import org.fire.service.restful.actor.naja.{CollectCacheActor, CollectDBActor}
+import org.fire.service.restful.route.naja._
+import org.fire.service.restful.route.naja.DataFormat._
 import spray.json._
 
+import scala.collection.mutable.{ListBuffer, Map => IMap}
 import scala.concurrent.Await
 import scala.reflect.ClassTag
-import scala.collection.JavaConversions._
-import scala.collection.mutable.{ListBuffer, Map => IMap}
 
 
 /**

@@ -1,6 +1,7 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restful.util.naja
 
 import org.apache.commons.mail._
+import org.fire.service.restful.route.naja.{Ding, Mail, SendMsg, WeChat}
 
 import scala.util.{Failure, Success, Try}
 import scalaj.http._

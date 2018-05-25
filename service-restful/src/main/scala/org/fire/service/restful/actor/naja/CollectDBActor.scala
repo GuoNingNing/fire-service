@@ -1,9 +1,11 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restful.actor.naja
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.Config
-import scala.slick.driver.MySQLDriver.simple._
 import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
+import org.fire.service.restful.route.naja._
+
+import scala.slick.driver.MySQLDriver.simple._
 
 /**
   * Created by cloud on 18/3/9.
@@ -152,4 +154,6 @@ object CollectDBActor {
   val NAME = "db-fire-service"
 
   def apply(db: Database, config: Config): CollectDBActor = new CollectDBActor(db, config)
+
+  def props(db: Database, config: Config): Props = Props(apply(db, config))
 }

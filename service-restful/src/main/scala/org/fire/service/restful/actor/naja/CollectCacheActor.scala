@@ -1,10 +1,12 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restful.actor.naja
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.Config
+import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
+import org.fire.service.restful.route.naja._
+import org.fire.service.restful.util.naja.DataManager
 import org.slf4j.LoggerFactory
 import redis.clients.jedis.{Jedis, JedisPool, JedisPoolConfig}
-import CollectRouteConstantConfig._
 
 import scala.collection.JavaConversions._
 
@@ -54,6 +56,8 @@ object CollectCacheActor {
 
   def apply(jedisConnect: JedisConnect, config: Config): CollectCacheActor =
     new CollectCacheActor(jedisConnect, config)
+
+  def props(jedisConnect: JedisConnect, config: Config): Props = Props(apply(jedisConnect, config))
 }
 
 

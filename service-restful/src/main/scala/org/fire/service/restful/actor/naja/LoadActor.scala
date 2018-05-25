@@ -1,7 +1,9 @@
-package org.fire.service.restful.route.naja
+package org.fire.service.restful.actor.naja
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import com.typesafe.config.Config
+import org.fire.service.restful.route.naja._
+import org.fire.service.restful.util.naja.DataManager
 
 /**
   * Created by cloud on 18/3/13.
@@ -36,4 +38,6 @@ object LoadActor {
   val NAME = "load-fire-service"
 
   def apply(config: Config): LoadActor = new LoadActor(config)
+
+  def props(config: Config): Props = Props(apply(config))
 }
