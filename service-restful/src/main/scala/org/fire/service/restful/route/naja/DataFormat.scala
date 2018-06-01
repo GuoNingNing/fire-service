@@ -29,17 +29,6 @@ object DataFormat extends DefaultJsonProtocol with SprayJsonSupport{
   implicit val hostJobFormat = jsonFormat3(HostJob)
 }
 
-
-/*
-* 用来推动定时进行数据同步用的消息,在LoadActor中被需要
-* */
-case object InitLoadHosts
-case object InitWriteHosts
-/*
-* 用来推动定时进行数据监控的消息,在MonitorActor中被需要
-* */
-case object InitMonitor
-
 /*
 * MonitorActor 需要的一些消息体,用来限定用哪种方式发送消息
 * */
@@ -62,44 +51,6 @@ case class Mail(server: String,
 case class WeChat(url: String,
                   contacts: Seq[String],
                   msg: String) extends SendMsg
-/*
-object Ding {
-  def apply(url: String, contacts: String, msg: String): Ding =
-    new Ding(url, contacts.split(",").toSeq, msg)
-}
-object Mail {
-
-  def apply(server: String,
-            port: Int,
-            user: String,
-            password: String,
-            from: (String,String),
-            to: Seq[String],
-            subject: String,
-            msg: String): Mail =
-    new Mail(server,port,user,password,from,to,subject = subject,msg = msg)
-
-  def apply(server: String,
-            port: Int,
-            from: String,
-            password: String,
-            to: String,
-            subject: String,
-            msg: String): Mail =
-    apply(server,port,from,password,from -> from.substring(0,from.indexOf("@")),to.split(",").toSeq,subject,msg)
-}
-object WeChat {
-  def apply(url: String, contacts: String, msg: String): WeChat =
-    new WeChat(url, contacts.split(","), msg)
-}
-*/
-
-/*
-* redis 数据结构
-* */
-sealed trait RedisCMD extends Serializable
-case class RSet(key: String,value: String) extends RedisCMD
-case class RGet(key: String) extends RedisCMD
 
 
 /*

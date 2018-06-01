@@ -10,8 +10,9 @@ import scala.slick.driver.MySQLDriver.simple._
 /**
   * Created by cloud on 18/3/9.
   */
-class CollectDBActor(val db: Database,
-                     val config: Config) extends Actor with ActorLogging {
+class CollectDBActor(val config: Config) extends Actor with ActorLogging {
+
+  private val db = Database.forConfig("mysql", config.getConfig("db"))
 
   private val test = TableQuery[Test]
   private val hosts = TableQuery[Hosts]
@@ -153,7 +154,7 @@ class CollectDBActor(val db: Database,
 object CollectDBActor {
   val NAME = "db-fire-service"
 
-  def apply(db: Database, config: Config): CollectDBActor = new CollectDBActor(db, config)
+  def apply(config: Config): CollectDBActor = new CollectDBActor(config)
 
-  def props(db: Database, config: Config): Props = Props(apply(db, config))
+  def props(config: Config): Props = Props(apply(config))
 }

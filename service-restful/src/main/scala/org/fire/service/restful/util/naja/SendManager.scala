@@ -30,7 +30,7 @@ object SendManager {
     case weChat: WeChat =>
       Try{
         sendWeChat(weChat)
-      }match {
+      } match {
         case Success(r) => true
         case Failure(e) => false
       }

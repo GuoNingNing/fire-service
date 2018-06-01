@@ -5,7 +5,7 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import akka.actor.{ActorSelection, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
-import org.fire.service.restful.actor.naja.{CollectCacheActor, CollectDBActor}
+import org.fire.service.restful.actor.naja.{CacheActor, CollectDBActor}
 import org.fire.service.restful.route.naja._
 import org.fire.service.restful.route.naja.DataFormat._
 import spray.json._
@@ -24,7 +24,7 @@ object DataManager {
 
   val hostIdMap = new ConcurrentHashMap[String,Host]()
   val hostNameMap = new ConcurrentHashMap[String,Host]()
-  val cacheActorName = CollectCacheActor.NAME
+  val cacheActorName = CacheActor.NAME
   val dbActorName = CollectDBActor.NAME
 
   def parseLoadHosts(actorSystem: ActorSystem,hostRow: Option[HostRow]): List[Host] = {

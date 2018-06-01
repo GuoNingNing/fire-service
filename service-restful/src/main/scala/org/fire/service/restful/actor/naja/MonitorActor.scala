@@ -1,24 +1,42 @@
 package org.fire.service.restful.actor.naja
 
 import java.text.SimpleDateFormat
+import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, Props}
+import akka.util.Timeout
+import akka.pattern.ask
 import com.typesafe.config.Config
 import org.fire.service.restful.route.naja.CollectRouteConstantConfig._
 import org.fire.service.restful.route.naja._
-import org.fire.service.restful.util.naja.{DataManager, SendManager}
+import org.fire.service.restful.util.naja.SendManager
 
 import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Created by cloud on 18/3/22.
   */
 class MonitorActor(val config: Config) extends Actor with ActorLogging{
-  val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
 
-  var roleHistory: List[RoleRow] = List.empty
-  var hostHistory: List[Host] = List.empty
+  import MonitorDataStruct._
+
+  implicit private val timeout = Timeout(20, TimeUnit.SECONDS)
+
+  private val hostManagerSelection = context.actorSelection(s"/user/${HostManagerActor.NAME}")
+
+  private val dateFormat = MonitorManager.getDateFormat("yyyy-MM-dd HH:mm:ss")
+  private val hostTimeout = config.getInt(HOST_TIMEOUT,HOST_TIMEOUT_DEF)
+  private var roleHistory: List[RoleRow] = List.empty
+  private var hostHistory: List[Host] = List.empty
+  private val alertInterval = 300 // config.getInt("")
+
+  override def preStart(): Unit = {
+    val time = Timeout(alertInterval, TimeUnit.SECONDS)
+
+    context.system.scheduler.schedule(time.duration, time.duration, self, MonitorAlert)
+  }
 
   override def receive: Receive = {
     case ding: Ding =>
@@ -32,22 +50,71 @@ class MonitorActor(val config: Config) extends Actor with ActorLogging{
     case weChat: WeChat =>
       log.info(s"weChat: ${weChat.msg}")
 
-    case InitMonitor =>
-      val hostList = MonitorManager.checkHost(hostTimeout)
-      val roleList = MonitorManager.checkRole(hostTimeout)
-      if(hostList.nonEmpty || roleList.nonEmpty) {
-        val hostMsg = MonitorManager.hostAlertMsg(hostList, hostHistory)
-        val roleMsg = MonitorManager.roleAlertMsg(roleList, roleHistory)
-        val sendMsg = MonitorManager.getSendMsg(config, hostMsg + "\n" + roleMsg)
-        sendMsg match {
-          case Some(sm) => self ! sm
-          case None => log.warning(s"create SendMsg failed. WarningMessage:\n$hostMsg\n$roleMsg")
-        }
-        hostHistory = hostList
-        roleHistory = roleList
-      }
+    case MonitorAlert => monitorAlert()
+
   }
 
+  private def monitorAlert(): Unit = {
+    hostManagerSelection ? HostRead(None) map(_.asInstanceOf[List[Host]]) onComplete {
+      case Success(s) =>
+        implicit val hosts = s
+        val host = s.filter(h => isTimeout(h.mem.timestamp))
+        val role = s.filter(h => !isTimeout(h.mem.timestamp)).flatMap(h => h.role.filter(r => isTimeout(r.timestamp)))
+        val msg = roleAlertMsg(role) + "\n" + hostAlerMsg(host)
+        if(msg != "\n"){
+          val sendMsg = MonitorManager.getSendMsg(config,msg)
+          sendMsg match {
+            case Some(e) => self ! e
+            case None => log.warning("create sendMsg failed. ")
+          }
+        }
+      case Failure(t) => log.warning("check host timeout fetch hosts failed. ",t)
+    }
+  }
+
+  private def isTimeout(time: Long) = time < System.currentTimeMillis() - hostTimeout
+
+  private def roleAlertMsg(roleList: List[RoleRow])(implicit hosts: List[Host]): String = {
+    val recoveryRole = roleHistory.filter(s => !roleList.contains(s))
+    val deadRole = roleList.filter(s => !roleHistory.contains(s))
+    val hostIdMap = hosts.map(h => h.hostId -> h).toMap
+    val msg = (rList: List[RoleRow]) => rList.groupBy(_.id).map { case (id, roles) =>
+      val rolesMsg = roles.map {
+        r => s"Role: ${r.role}, LastUpdate: ${dateFormat.format(r.timestamp)}"
+      }.mkString("\n\t")
+      s"Host: ${hostIdMap(id).hostName}\n\t$rolesMsg"
+    }.mkString("\n")
+    val rMsg = if(recoveryRole.nonEmpty) "recovery role list:\n"+msg(recoveryRole) else ""
+    val dMsg = if(deadRole.nonEmpty) "dead role list:\n"+msg(deadRole) else ""
+    val alertMsg = rMsg+"\n"+dMsg
+    roleHistory = roleHistory.isEmpty match {
+      case true => roleList
+      case false => roleHistory.diff(recoveryRole) ::: deadRole
+    }
+    alertMsg match {
+      case "\n" => ""
+      case _ => alertMsg
+    }
+  }
+
+  private def hostAlerMsg(hostList: List[Host]): String = {
+    val recoveryHost = hostHistory.filter(h => !hostList.contains(h))
+    val deadHost = hostList.filter(h => !hostHistory.contains(h))
+    val msg = (hList: List[Host]) => hList.map {
+      h => s"Host: ${h.hostName}, LastUpdate: ${dateFormat.format(h.mem.timestamp)}"
+    }.mkString("\n")
+    val rMsg = if(recoveryHost.nonEmpty) "recovery host list:\n"+msg(recoveryHost) else ""
+    val dMsg = if(deadHost.nonEmpty) "dead host list:\n"+msg(deadHost) else ""
+    val alertMsg = rMsg+"\n"+dMsg
+    hostHistory = hostHistory.isEmpty match {
+      case true => hostList
+      case false => hostHistory.diff(recoveryHost) ::: deadHost
+    }
+    alertMsg match {
+      case "\n" => ""
+      case _ => alertMsg
+    }
+  }
 }
 
 object MonitorActor {
@@ -61,14 +128,6 @@ object MonitorActor {
 
 object MonitorManager {
   def getDateFormat(format: String) = new SimpleDateFormat(format)
-
-  def nowTimeout(timeout: Long) = System.currentTimeMillis() - timeout
-
-  def checkHost(hostTimeout: Long): List[Host] = {
-    DataManager.hostIdMap.filter {
-      case (id,host) => host.mem.timestamp < nowTimeout(hostTimeout)
-    }.values.toList
-  }
 
   def getSendMsg(config: Config,msg: String): Option[SendMsg] = {
     config.getString("monitor.type","ding") match {
@@ -118,72 +177,8 @@ object MonitorManager {
     }
   }
 
-  def checkThreshold(): Unit = {}
+}
 
-  def checkRole(hostTimeout: Long): List[RoleRow] = {
-    DataManager.hostIdMap.filter {
-      case (id,host) => host.mem.timestamp >= nowTimeout(hostTimeout)
-    }.flatMap {
-      case (id,host) =>
-        host.role.filter(r => r.timestamp < nowTimeout(hostTimeout))
-    }.toList
-  }
-
-  def roleAlertMsg(roleList: List[RoleRow],roleHistory: List[RoleRow]): String = {
-    val dateFormat = getDateFormat("yyyy-MM-dd HH:mm:ss")
-    val recoveryRole = roleHistory.filter(d => !roleList.contains(d)).map {
-      r => (DataManager.hostIdMap(r.id).hostName,r.role,dateFormat.format(r.timestamp))
-    }
-    val deadRole = roleList.map {
-      r => (DataManager.hostIdMap(r.id).hostName,r.role,dateFormat.format(r.timestamp))
-    }
-    val msg = (r: List[(String,String,String)],t: String) => r.isEmpty match {
-      case true => ""
-      case false =>
-        s"""
-           |$t
-           |HostName \t\t RoleName \t\t LastUpdate
-           |${r.map(d => s"${d._1}\t\t${d._2}\t\t${d._3}").mkString("\n")}
-         """.stripMargin
-    }
-    val deadMsg = msg(deadRole,"dead role list:")
-    val recoveryMsg = msg(recoveryRole,"recovery role list:")
-
-    if(deadMsg+recoveryMsg != "")
-      s"""
-       |$deadMsg
-       |
-       |$recoveryMsg
-     """.stripMargin
-    else ""
-  }
-
-  def hostAlertMsg(hostList: List[Host],hostHistory: List[Host]): String = {
-    val dateFormat = getDateFormat("yyyy-MM-dd HH:mm:ss")
-    val recoveryHost = hostHistory.filter(h => !hostList.contains(h)).map {
-      h => (h.hostName,dateFormat.format(h.mem.timestamp))
-    }
-    val deadHost = hostList.map {
-      h => (h.hostName,dateFormat.format(h.mem.timestamp))
-    }
-    val msg = (l: List[(String,String)],t: String) => l.isEmpty match {
-      case true => ""
-      case false =>
-        s"""
-           |$t
-           |HostName \t\t LastUpdate
-           |${l.map(d => s"${d._1}\t\t${d._2}").mkString("\n")}
-         """.stripMargin
-    }
-    val deadMsg = msg(deadHost,"dead host list:")
-    val recoveryMsg = msg(recoveryHost,"recovery host list:")
-    if(deadMsg+recoveryMsg != "")
-      s"""
-         |$deadMsg
-         |
-         |$recoveryMsg
-       """.stripMargin
-    else ""
-  }
-
+object MonitorDataStruct {
+  case object MonitorAlert
 }

@@ -18,11 +18,12 @@ object YarnAppManager {
   val appHostMap = new ConcurrentHashMap[String,String]()
 
   def fetchSparkApp(appId: String, timeout: Long): Option[SparkApp] ={
+    val nonTimeout = (container: Container) => container.timestamp > System.currentTimeMillis() - timeout
     appIdMap.contains(appId) match {
       case true =>
         val sparkApp = appIdMap(appId)
         val otherContainers = appContainerMap.getOrDefault(appId,List.empty[Container])
-          .filter(_.timestamp > MonitorManager.nowTimeout(timeout))
+          .filter(nonTimeout)
         val container = sparkApp.containers ::: otherContainers
         val newSparkApp =
           SparkApp(sparkApp.hostId,sparkApp.appId,sparkApp.userClass,sparkApp.appName,container,sparkApp.timestamp)
