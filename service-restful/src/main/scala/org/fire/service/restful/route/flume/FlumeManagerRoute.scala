@@ -5,7 +5,7 @@ import akka.pattern.ask
 import org.fire.service.core.{BaseRoute, ResultMsg, Supervisor}
 import org.fire.service.restful.actor.flume.FlumeManager._
 import org.fire.service.restful.actor.flume.FlumeManagerJsonFormat._
-import spray.http.StatusCodes
+import spray.http.{MediaTypes, StatusCode, StatusCodes}
 import spray.routing.Route
 
 import scala.concurrent.{Await, Future}
@@ -27,12 +27,17 @@ class FlumeManagerRoute(override val system: ActorSystem) extends BaseRoute{
       .~(action())
   }
 
+  private def response(code: StatusCode, data: FlumeResponse): Route =
+    respondWithMediaType(MediaTypes.`application/json`) { ctx =>
+      ctx.complete(code, data)
+    }
+
   private def flumeResponse(future: Future[Any]): Route = {
     Try {
       Await.result(future,timeout.duration).asInstanceOf[FlumeResponse]
     } match {
-      case Success(s) => jsonResponse(StatusCodes.OK, ResultMsg(s.code, s.message))
-      case Failure(e) => jsonResponse(StatusCodes.InternalServerError, ResultMsg(-1, e.getMessage))
+      case Success(s) => response(StatusCodes.OK, s)
+      case Failure(e) => response(StatusCodes.InternalServerError, FlumeResponse(-1, e.getMessage))
     }
   }
 

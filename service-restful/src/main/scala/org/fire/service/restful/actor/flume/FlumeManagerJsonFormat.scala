@@ -9,6 +9,7 @@ import spray.json.DefaultJsonProtocol
 object FlumeManagerJsonFormat extends DefaultJsonProtocol with SprayJsonSupport {
   import FlumeManager._
 
+  implicit val responseFormat = jsonFormat2(FlumeResponse)
   implicit val flumeFormat = jsonFormat2(Flume)
   implicit val jarFormat = jsonFormat2(FlumeJar)
   implicit val instanceFormat = jsonFormat4(FlumeInstance)
