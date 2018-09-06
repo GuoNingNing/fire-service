@@ -24,6 +24,7 @@ object DynamicDeployJsonFormat extends DefaultJsonProtocol with SprayJsonSupport
   implicit val deployJobFormat = jsonFormat4(DeployJob)
   implicit val getJobStatusFormat = jsonFormat1(GetDeployJobStatus)
   implicit val submitJobFormat = jsonFormat2(SubmitDeployJob)
+  implicit val jobResultFormat = jsonFormat3(DeployJobResult)
   implicit val completeJobFormat = jsonFormat5(CompleteDeployJob)
   implicit val jobStatusFormat = jsonFormat2(DeployJobStatus)
 }
@@ -171,5 +172,6 @@ object DynamicDeployDataStruct {
                                host: String,
                                fetchTime: Long,
                                completeTime: Long,
-                               result: String)
+                               result: DeployJobResult)
+  case class DeployJobResult(stdout: String, stderr: String, exitCode: Int)
 }

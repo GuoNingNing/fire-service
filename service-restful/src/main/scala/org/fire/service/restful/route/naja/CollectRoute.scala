@@ -7,6 +7,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import org.fire.service.core.{BaseRoute, ResultMsg}
 import org.fire.service.core.ResultJsonSupport._
+import org.fire.service.core.util.Utils
 import org.fire.service.restful.actor.naja.DynamicDeployDataStruct._
 import org.fire.service.restful.actor.naja.DynamicDeployJsonFormat._
 import org.fire.service.restful.actor.naja._
@@ -81,7 +82,7 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
               val fileName = headers.find(_.is("content-disposition"))
                 .getOrElse(HttpHeaders.`Content-Disposition`("", Map("filename" -> "tmp_file")))
                 .value.split("filename=").last
-              val saveBoolean = saveAttachment(s"$fileBasePath/$fileName", content)
+              val saveBoolean = Utils.save(s"$fileBasePath/$fileName", content)
               (saveBoolean, fileName)
             case _ => (false, "")
           }.head
@@ -208,36 +209,6 @@ class CollectRoute(override val system : ActorSystem) extends BaseRoute{
     Try {
       Await.result(future, timeout seconds)
     }.getOrElse(default)
-  }
-
-  private def saveAttachment(fileName: String, content: Array[Byte]): Boolean = {
-    saveAttachment[Array[Byte]](fileName, content, {(is, os) => os.write(is)})
-    true
-  }
-
-  private def saveAttachment(fileName: String, content: InputStream): Boolean = {
-    saveAttachment[InputStream](fileName, content,
-      { (is, os) =>
-        val buffer = new Array[Byte](16384)
-        Iterator
-          .continually (is.read(buffer))
-          .takeWhile (-1 != _)
-          .foreach (read=>os.write(buffer,0,read))
-      }
-    )
-  }
-
-  private def saveAttachment[T](fileName: String, content: T, writeFile: (T, OutputStream) => Unit): Boolean = {
-    try {
-      val fos = new java.io.FileOutputStream(fileName)
-      writeFile(content, fos)
-      fos.close()
-      true
-    } catch {
-      case e: Exception =>
-        logger.error(s"$fileName write failed.",e)
-        false
-    }
   }
 
 }
