@@ -30,7 +30,7 @@ class FlumeManager extends BaseActor{
   private val flumePath =
     Option(conf.getString(ConfigConstant.FLUME_PATH)).getOrElse(ConfigConstant.FLUME_DEF_PATH)
   private val startScript = conf.getString(ConfigConstant.START_SCRIPT)
-  private val serverUrl = conf.getString(ConfigConstant.SER_URL)
+  private val serverUrl = Option(conf.getString(ConfigConstant.SER_URL)).getOrElse("null")
 
   private val instances: JMap[String, FlumeStatus] = new ConcurrentHashMap[String, FlumeStatus]()
 
@@ -131,16 +131,26 @@ class FlumeManager extends BaseActor{
   private def service(action: String,name: String): Unit = {
     instances.containsKey(name) match {
       case true =>
-        val params = List(s"$instancePath/$name", action)
-        val process = Process(s"$startScript", params)
-        var stdout = ""
-        var stderr = ""
-        val resCode = process.!(ProcessLogger(x => stdout = x, y => stderr = y))
-        resCode match {
-          case x if x > 0 => sender ! FlumeResponse(-1, s"$action flume $name failed.\n$stderr")
-          case _ => sender ! FlumeResponse(0, s"$action flume $name success.\n$stdout")
+        val result = run(s"$startScript", List(s"$instancePath/$name", action))
+        result.exitCode match {
+          case x if x > 0 => sender ! FlumeResponse(-1, s"$action $name failed.\n${result.stderr}")
+          case _ => sender ! FlumeResponse(0, s"$action $name success.\n${result.stdout}")
         }
-      case false => sender ! FlumeResponse(-1,"instance not found")
+      case false =>
+        var code = 0
+        var stderr = ""
+        instances.foreach { case (k,v) =>
+            val res = run(s"$startScript", List(s"$instancePath/$k", action))
+            if (res.exitCode != 0) {
+              code += res.exitCode
+              stderr += s"\n$k:${res.stderr}"
+            }
+        }
+        if (code == 0) {
+          sender ! FlumeResponse(0, s"$action all instance success.")
+        } else {
+          sender ! FlumeResponse(-1, s"$action failed.\n$stderr")
+        }
     }
   }
   private def start(startInstance: StartInstance): Unit = service("start", startInstance.name)
@@ -168,11 +178,21 @@ class FlumeManager extends BaseActor{
   }
 
   private def getRunning(name: String): Boolean = {
-    val process = Process(s"$startScript",List(s"$instancePath/$name", "status"))
-    process.run().exitValue() match {
+    val result = run(s"$startScript",List(s"$instancePath/$name", "status"))
+    result.exitCode match {
       case x if x > 0 => false
       case _ => true
     }
+  }
+
+  private def run(cmd: String, args: List[String]): ProcessResult = {
+    val process = Process(cmd, args)
+    var (stdout,stderr) = ("","")
+    ProcessResult(
+      process.run(ProcessLogger(x => stdout = x, y => stderr = y)).exitValue(),
+      stdout,
+      stderr
+    )
   }
 }
 
@@ -218,6 +238,8 @@ object FlumeManager {
     proper.putAll(map)
     proper
   }
+
+  case class ProcessResult(exitCode: Int, stdout: String, stderr: String)
 
   case class FetchInstance(name: String)
   case class FlumeResponse(code: Int, message: String)
